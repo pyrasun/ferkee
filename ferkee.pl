@@ -56,8 +56,9 @@ while (1) {
     chomp ($url);
 
     if (!$decisions{$docket}) {
-      $docketAlert .= "New Certificate Pipeline Decision: $docket: $url\n";
+      $docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
       $decisions{$docket} = $url;
+			$docketAlert .= &getDecisionText($url) . "\n\n";
     }
   }
 
@@ -118,5 +119,36 @@ sub readState() {
     chomp ($url);
     $decisions{$docket} = $url;
   }
+}
+
+sub getDecisionText {
+	my $url = shift (@_);
+	$url =~ s/http:/https:/;
+	print "$url\n";
+
+	my @text = ();
+
+	my @urlParts = split ("/", $url);
+	my $fileName = $urlParts[scalar (@urlParts)-1];
+
+	`curl -O $url`;
+
+	my @pdf2text = `pdf2txt.py -t text $fileName`;
+
+	my $i = 0;
+
+	for my $line (@pdf2text) {
+		chomp ($line);
+		next if $line =~ /^\s$/;
+		next if !$line;
+		last if $i > 40;
+		if ($line =~ /^[2I]\./) {
+			last;
+		}
+		push (@text, "$line");
+		$i++;
+	}
+	unlink $fileName;
+	return join ("\n", @text);
 }
 

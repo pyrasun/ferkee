@@ -6,7 +6,7 @@ class FercNotionalSpider(scrapy.Spider):
 
     def start_requests(self):
         urls = [
-            'https://www.ferc.gov'
+            'http://www.ferc.gov'
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parseFrontPage)
@@ -21,20 +21,20 @@ class FercNotionalSpider(scrapy.Spider):
         orderPageHref = link.xpath('@href').extract()[0];
         if (orderPageHref.startswith("/EventCalendar") and notFound): 
           notFound = False
-	  print orderPageHref;
-          yield scrapy.Request(url="https://ferc.gov" + orderPageHref, callback=self.parseNotationals)
+          print response.urljoin(orderPageHref);
+          yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
     # Parse a FERC notional order page, looking for Certificate Pipeline (CP) decisions
     def parseNotationals(self, response):
         dockets = response.css("#LabelSummary::text").extract_first()
         if (dockets):
-          m = re.match(r'Docket Nos.:(.*)$', dockets, re.M|re.I)
+          m = re.match(r'Docket Nos?.:? (.*)$', dockets, re.M|re.I)
           dockets = m.group(1)
           dockets = dockets.split(";")
           for docket in dockets: 
             docket = docket.strip()
             if (docket.startswith("CP")):
-              urlRE = 'http://www.ferc.gov.CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
+              urlRE = 'http://www.ferc.gov/CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
               decisionURL = response.xpath('//a[contains(@href, "pdf")]').re(urlRE)
               print ("%s;%s" % (docket, decisionURL[0]))
 
