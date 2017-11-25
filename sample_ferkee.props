@@ -1,4 +1,6 @@
 
+# Sample properties for ferkee.  Never check in your own as it includes smtp authentication information
+
 to=youraddress@someemail.com
 admin_to=youraddress@someemail.com
 from=smtp username
