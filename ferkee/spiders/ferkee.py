@@ -33,7 +33,7 @@ class FercNotionalSpider(scrapy.Spider):
           dockets = dockets.split(";")
           for docket in dockets: 
             docket = docket.strip()
-            if (docket.startswith("CP")):
+            if (docket.startswith("CP") or True):
               urlRE = 'http://www.ferc.gov/CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
               decisionURL = response.xpath('//a[contains(@href, "pdf")]').re(urlRE)
               print ("%s;%s" % (docket, decisionURL[0]))

@@ -64,32 +64,31 @@ while (1) {
 
   # Send admin alerts
   if ($adminAlert) {
-    print $adminAlert;
-
-    if ($sendMail) {
-      my $subject = "Ferkee Admin Notice";
-
-      open SENDEMAIL, "|sendemail -f $from -t $adminTo -u '$subject' -s smtp.gmail.com:587 -xu $from -xp '$from_p'";
-      print  SENDEMAIL "$adminAlert\n";
-      close(SENDEMAIL);
-    }
+		&sendAlert($adminTo, "Ferkee Admin Notice", $adminAlert);
   }
 
   # Send docket alerts (CP decisions)
   if ($docketAlert) {
-    print $docketAlert;
-
-    if ($sendMail) {
-      my $subject = "Ferkee Alert!  Certificate Pipeline Decision Published";
-
-      open SENDEMAIL, "|sendemail -f $from -t $to -u '$subject' -s smtp.gmail.com:587 -xu $from -xp '$from_p'";
-      print  SENDEMAIL "$docketAlert\n";
-      close(SENDEMAIL);
-    }
+		&sendAlert($to, "Ferkee Alert!  Certificate Pipeline Decision Published", $docketAlert);
   }
 
   &dumpState();
   sleep (60);
+}
+
+sub sendAlert {
+	my $to = shift (@_);
+	my $subject = shift (@_);
+	my $alert = shift (@_);
+
+	`date`;
+	print "$alert";
+	if ($sendMail) {
+		open SENDEMAIL, "|sendemail -f $from -t $to -u '$subject' -s smtp.gmail.com:587 -xu $from -xp '$from_p'";
+		print  SENDEMAIL "$alert\n";
+		close(SENDEMAIL);
+	}
+
 }
 
 sub dumpState() {
