@@ -6,8 +6,8 @@ use warnings;
 use Getopt::Std;
 use Config::Properties;
 
-our ($opt_c);
-getopt("c");
+our ($opt_c, $opt_i);
+getopt("ci");
 
 print "Loading config $opt_c\n";
 die "Properties file not found: $opt_c" if (!-f $opt_c);
@@ -28,8 +28,12 @@ my $sendMail = 1;
 my $notionalDecisionURL = "";
 my %decisions = ();
 
-print "Reading ferkeeState.txt...\n";
-&readState();
+if ($opt_i) {
+	print ("Ignoring saved state\n");
+} else {
+	print "Reading ferkeeState.txt...\n";
+	&readState();
+}
 
 print "Entering bot loop\n";
 while (1) {
