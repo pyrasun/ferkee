@@ -19,8 +19,9 @@ my $to = $config->getProperty("to");
 my $from = $config->getProperty("from");
 my $adminTo = $config->getProperty("admin_to");
 my $from_p = $config->getProperty("from_p");
+my $decisionPattern = $config->getProperty("decision_pattern");
 
-print "Options: to:$to, from:$from, adminTo=$adminTo\n";
+print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern\n";
 
 # my $to = "michael.spille\@gmail.com lorraine.crown\@yahoo.com";
 my $sendMail = 1;
@@ -54,6 +55,7 @@ while (1) {
     my ($docket, $url) = split (";", $decision);
     chomp ($docket);
     chomp ($url);
+		next if !($docket =~ /$decisionPattern/);
 
     if (!$decisions{$docket}) {
       $docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
