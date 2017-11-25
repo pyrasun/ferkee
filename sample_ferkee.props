@@ -1,0 +1,14 @@
+
+to=youraddress@someemail.com
+admin_to=youraddress@someemail.com
+from=smtp username
+from_p=smtp password
+
+# Notional decision files you're interested in
+
+# All decisions
+# decision_pattern=.*
+
+# Only Certificate Pipeline decisions
+decision_pattern=^CP.*
+
