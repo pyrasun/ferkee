@@ -26,6 +26,10 @@ class FercNotionalSpider(scrapy.Spider):
 
     # Parse a FERC notional order page, looking for Certificate Pipeline (CP) decisions
     def parseNotationals(self, response):
+        myUrl = response.request.url
+        result = {}
+        result['url'] = myUrl;
+        result['decisions'] = []
         dockets = response.css("#LabelSummary::text").extract_first()
         if (dockets):
           m = re.match(r'Docket Nos?.:? (.*)$', dockets, re.M|re.I)
@@ -33,8 +37,10 @@ class FercNotionalSpider(scrapy.Spider):
           dockets = dockets.split(";")
           for docket in dockets: 
             docket = docket.strip()
-            if (True):
-              urlRE = 'http://www.ferc.gov/CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
-              decisionURL = response.xpath('//a[contains(@href, "pdf")]').re(urlRE)
-              print ("%s;%s" % (docket, decisionURL[0]))
+            urlRE = 'http://www.ferc.gov/CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
+            decisionURL = response.xpath('//a[contains(@href, "pdf")]').re(urlRE)
+            decision = {'docket': docket, 'decisionUrl':decisionURL[0]}
+            result['decisions'].append(decision)
+            print ("%s;%s" % (docket, decisionURL[0]))
+          return result
 
