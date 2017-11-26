@@ -33,7 +33,7 @@ class FercNotionalSpider(scrapy.Spider):
           print response.urljoin(orderPageHref);
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
-    # Parse a FERC notional order page, looking for Certificate Pipeline (CP) decisions
+    # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
         myUrl = response.request.url
         result = {}

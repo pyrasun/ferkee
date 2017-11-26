@@ -145,7 +145,7 @@ sub getDecisionText {
 
 	`curl -O $url`;
 
-	my @pdf2text = `pdf2txt.py -t text $fileName`;
+	my @pdf2text = `pdf2txt.py -m 1 -t text -L 1.0 $fileName`;
 
 	my $i = 0;
 
@@ -153,10 +153,10 @@ sub getDecisionText {
 		chomp ($line);
 		next if $line =~ /^\s$/;
 		next if !$line;
-		last if $i > 40;
-		if ($line =~ /^[2I]\./) {
-			last;
-		}
+		# last if $i > 40;
+		# if ($line =~ /^[2I]\./) {
+		# 	last;
+		# }
 		push (@text, "$line");
 		$i++;
 	}
