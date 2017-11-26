@@ -4,12 +4,21 @@ import re
 class FercNotionalSpider(scrapy.Spider):
     name = "ferkee"
 
+    # Normal operation - scrape the ferc.gov page and find the most recent notional decision URL, and scrape that
     def start_requests(self):
-        urls = [
-            'http://www.ferc.gov'
-        ]
-        for url in urls:
-            yield scrapy.Request(url=url, callback=self.parseFrontPage)
+      urls = [
+          'http://www.ferc.gov'
+      ]
+      for url in urls:
+        yield scrapy.Request(url=url, callback=self.parseFrontPage)
+
+    # For testing - hit one known multi decision page
+    # def start_requests(self):
+    #     urls = [
+    #         'https://www.ferc.gov/EventCalendar/EventDetails.aspx?ID=9849&CalType=%20&CalendarID=101&Date=11/22/2017&View=Listview'
+    #     ]
+    #     for url in urls:
+    #         yield scrapy.Request(url=url, callback=self.parseNotationals)
 
     # Search FERC front page looking for events like this below:
     # '/EventCalendar/EventDetails.aspx?ID=9840&CalType=%20&CalendarID=101&Date=11/20/2017&View=Listview'

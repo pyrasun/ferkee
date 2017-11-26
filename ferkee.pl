@@ -5,6 +5,7 @@ use warnings;
 
 use Getopt::Std;
 use Config::Properties;
+use JSON::Parse 'json_file_to_perl';
 
 our ($opt_c, $opt_i);
 getopt("ci");
@@ -23,10 +24,9 @@ my $decisionPattern = $config->getProperty("decision_pattern");
 
 print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern\n";
 
-# my $to = "michael.spille\@gmail.com lorraine.crown\@yahoo.com";
 my $sendMail = 1;
 my $notionalDecisionURL = "";
-my %decisions = ();
+my %seenDecisions = ();
 
 if ($opt_i) {
 	print ("Ignoring saved state\n");
@@ -38,35 +38,42 @@ if ($opt_i) {
 print "Entering bot loop\n";
 while (1) {
 
+	print "=========================================================\n";
+	my $now = `date`;
+	print "Running bot $now\n";
   my $docketAlert = "";
   my $adminAlert = "";
 
   # Fire Ferkee bot!
+	unlink "/tmp/ferkee_result.json";
   my @lines = `scrapy crawl ferkee 2>>ferkee.log`;
 
-  # First line is the most recent notional decision file
-  my $thisNotionalDecisionURL = shift(@lines);
-  chomp ($thisNotionalDecisionURL);
+	next if !-f "/tmp/ferkee_result.json";
+
+	my $crawlResult = json_file_to_perl ("/tmp/ferkee_result.json");
+	$crawlResult = $crawlResult->[0];
+	my $thisNotionalDecisionURL = $crawlResult->{'url'};
+	print ("Notional Decision URL: $thisNotionalDecisionURL\n");
   if ($thisNotionalDecisionURL ne $notionalDecisionURL) {
     $notionalDecisionURL = $thisNotionalDecisionURL;
     $adminAlert .= "A new Notional Decision page has been published: $notionalDecisionURL\n";
-    %decisions = ();
+    %seenDecisions = ();
   }
 
-  # Loop through remaining lines - these are Certificate Pipeline (CP) decisions
-  foreach my $decision (@lines) {
-    chomp ($decision);
-    my ($docket, $url) = split (";", $decision);
-    chomp ($docket);
-    chomp ($url);
+	my $decisions = $crawlResult->{'decisions'}; 
+
+  # Loop through our decisions and grab the ones that match our alerting pattern
+	for my $decision (@$decisions) {
+		my $docket = $decision->{'docket'};
+		my $url = $decision->{'decisionUrl'};
+		print ("\tDocket $docket, Decision $url\n");
 		next if !($docket =~ /$decisionPattern/);
-
-    if (!$decisions{$docket}) {
-      $docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
-      $decisions{$docket} = $url;
+		if (!$seenDecisions{$docket}) {
+			$docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
+			$seenDecisions{$docket} = $url;
 			$docketAlert .= &getDecisionText($url) . "\n\n";
-    }
-  }
+		}
+	}
 
   # Send admin alerts
   if ($adminAlert) {
@@ -101,7 +108,7 @@ sub dumpState() {
   open FERKEE_STATE, ">ferkeeState.txt";
   print FERKEE_STATE "$notionalDecisionURL\n";
 
-  while(my ($docket, $url) = each %decisions) {
+  while(my ($docket, $url) = each %seenDecisions) {
     print FERKEE_STATE "$docket;$url\n";
   }
 
@@ -122,7 +129,7 @@ sub readState() {
     my ($docket, $url) = split (";", $decision);
     chomp ($docket);
     chomp ($url);
-    $decisions{$docket} = $url;
+    $seenDecisions{$docket} = $url;
   }
 }
 
