@@ -48,8 +48,11 @@ class FercNotionalSpider(scrapy.Spider):
             docket = docket.strip()
             urlRE = 'http://www.ferc.gov/CalendarFiles/[0-9]*-' + docket + '[0-9]*.pdf'
             decisionURL = response.xpath('//a[contains(@href, "pdf")]').re(urlRE)
-            decision = {'docket': docket, 'decisionUrl':decisionURL[0]}
-            result['decisions'].append(decision)
-            print ("%s;%s" % (docket, decisionURL[0]))
+            if (len(decisionURL) > 0):
+              decision = {'docket': docket, 'decisionUrl':decisionURL[0]}
+              result['decisions'].append(decision)
+              print ("%s;%s" % (docket, decisionURL[0]))
+            else:
+              print ("No URL found for %s" % docket);
           return result
 

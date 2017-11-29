@@ -46,7 +46,7 @@ while (1) {
 
   # Fire Ferkee bot!
 	unlink "/tmp/ferkee_result.json";
-  my @lines = `scrapy crawl ferkee 2>>ferkee.log`;
+  my @lines = `scrapy crawl ferkee >ferkee.log 2>&1`;
 
 	next if !-f "/tmp/ferkee_result.json";
 
