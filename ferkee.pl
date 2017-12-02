@@ -7,8 +7,11 @@ use Getopt::Std;
 use Config::Properties;
 use JSON::Parse 'json_file_to_perl';
 
-our ($opt_c, $opt_i);
-getopt("ci");
+our ($opt_c, $opt_i, $opt_n);
+getopt("cin");
+
+my @version = `cat version.txt`;
+print "$version[0]\n";
 
 print "Loading config $opt_c\n";
 die "Properties file not found: $opt_c" if (!-f $opt_c);
@@ -21,10 +24,13 @@ my $from = $config->getProperty("from");
 my $adminTo = $config->getProperty("admin_to");
 my $from_p = $config->getProperty("from_p");
 my $decisionPattern = $config->getProperty("decision_pattern");
-
-print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern\n";
-
 my $sendMail = 1;
+if ($opt_n) {
+   $sendMail = 0;
+}
+
+print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern, sendMail=$sendMail\n";
+
 my $notionalDecisionURL = "";
 my %seenDecisions = ();
 
@@ -36,6 +42,8 @@ if ($opt_i) {
 }
 
 print "Entering bot loop\n";
+&sendAlert($to, "Ferkee $version[0] started", "Ferkee has been restarted and is now live. You will be emailed FERC pipeline decision orders in realtime\n\nTo unsubscribe send an email to ferkeebot\@gmail.com\n");
+
 while (1) {
 
 	print "=========================================================\n";
