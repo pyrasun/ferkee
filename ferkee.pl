@@ -42,7 +42,7 @@ if ($opt_i) {
 }
 
 print "Entering bot loop\n";
-&sendAlert($to, "Ferkee $version[0] started", "Ferkee has been restarted and is now live. You will be emailed FERC pipeline decision orders in realtime\n\nTo unsubscribe send an email to ferkeebot\@gmail.com\n");
+# &sendAlert($to, "Ferkee $version[0] started", "Ferkee has been restarted and is now live. You will be emailed FERC pipeline decision orders in realtime\n\nTo unsubscribe send an email to ferkeebot\@gmail.com\n");
 
 while (1) {
 
@@ -105,7 +105,7 @@ sub sendAlert {
 	`date`;
 	print "$alert";
 	if ($sendMail) {
-		open SENDEMAIL, "|sendemail -f $from -t $to -u '$subject' -s smtp.gmail.com:587 -xu $from -xp '$from_p'";
+		open SENDEMAIL, "|sendEmail -f $from -t $to -u '$subject' -s smtp.gmail.com:587 -xu $from -xp '$from_p'";
 		print  SENDEMAIL "$alert\n";
 		close(SENDEMAIL);
 	}

@@ -21,3 +21,35 @@ Runtime dependencies are shown below:
 - Scrapy 1.4
 - sendemail 1.5x
 
+AWS Linux Raw Install
+=============================
+
+This is quick and dirty minimal install.
+
+# Install CPAN
+sudo yum install perl-CPAN make gcc
+
+# Install JSON::Parse Perl module
+sudo cpan JSON::Parse
+
+# Install Config::Properties Perl module
+sudo cpan Config::Properties
+
+# Install Scrapy
+sudo pip install scrapy
+
+
+# Install sendemail
+curl http://caspian.dotconf.net/menu/Software/SendEmail/sendEmail-v1.56.tar.gz -o sendEmail.tar.gz
+gunzip sendEmail.tar.gz
+tar -xvf sendEmail.tar
+
+#Install pdf2txt.py
+
+
+# Tar up Ferkee
+ferkee/bin/archiveFerkee
+sftp user@server ferkee.tar
+
+
+

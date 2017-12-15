@@ -1,0 +1,5 @@
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo $SCRIPT_DIR
+cd "$SCRIPT_DIR/../.."
+
+tar -z --exclude ".git" --exclude ".scrapy" --exclude "*.swp" --exclude "*.pyc" --exclude "*.log"  --exclude "*.txt"  -cvf ferkee.tar ferkee
