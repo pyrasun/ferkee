@@ -24,7 +24,7 @@ Runtime dependencies are shown below:
 AWS Linux Raw Install
 =============================
 
-This is quick and dirty minimal install.
+This is quick and dirty minimal install.  Some steps are specific to AWS Linux AMI only
 
 # Install CPAN
 sudo yum install perl-CPAN make gcc
@@ -44,12 +44,23 @@ curl http://caspian.dotconf.net/menu/Software/SendEmail/sendEmail-v1.56.tar.gz -
 gunzip sendEmail.tar.gz
 tar -xvf sendEmail.tar
 
-#Install pdf2txt.py
+sudo yum install perl-Crypt-SSLeay-0.64
+sudo yum install perl-IO-Socket-SSL-1.94
 
+Patch sendEmail.pl line 1906 - comment out line, add in line below as shown here:
+
+  # if (! IO::Socket::SSL->start_SSL($SERVER, SSL_version => 'SSLv3 TLSv1')) {
+  if (! IO::Socket::SSL->start_SSL($SERVER)) {
+
+
+#Install PDFMiner
+See https://pypi.python.org/pypi/pdfminer/
+Download source, run setup.py install
 
 # Tar up Ferkee
 ferkee/bin/archiveFerkee
-sftp user@server ferkee.tar
+sftp -i yourkey.pem user@server 
+sftp> put ferkee.tar
 
 
 
