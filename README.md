@@ -38,7 +38,6 @@ sudo cpan Config::Properties
 # Install Scrapy
 sudo pip install scrapy
 
-
 # Install sendemail
 curl http://caspian.dotconf.net/menu/Software/SendEmail/sendEmail-v1.56.tar.gz -o sendEmail.tar.gz
 gunzip sendEmail.tar.gz
