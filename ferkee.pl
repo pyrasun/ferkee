@@ -6,6 +6,7 @@ use warnings;
 use Getopt::Std;
 use Config::Properties;
 use JSON::Parse 'json_file_to_perl';
+use JSON::Create 'create_json';
 
 our ($opt_c, $opt_i, $opt_n);
 getopt("cin");
@@ -20,6 +21,7 @@ my $config = Config::Properties->new(file => $opt_c);
 print "Config $opt_c loaded\n";
 
 my $to = $config->getProperty("to");
+my $noticeTo = $config->getProperty("noticeTo");
 my $from = $config->getProperty("from");
 my $adminTo = $config->getProperty("admin_to");
 my $from_p = $config->getProperty("from_p");
@@ -32,7 +34,9 @@ if ($opt_n) {
 print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern, sendMail=$sendMail\n";
 
 my $notionalDecisionURL = "";
+my $noticeURL = "";
 my %seenDecisions = ();
+my %seenNotices = ();
 
 if ($opt_i) {
 	print ("Ignoring saved state\n");
@@ -51,6 +55,7 @@ while (1) {
 	print "Running bot $now\n";
   my $docketAlert = "";
   my $adminAlert = "";
+  my $noticeAlert = "";
 
   # Fire Ferkee bot!
 	unlink "/tmp/ferkee_result.json";
@@ -59,8 +64,8 @@ while (1) {
 	next if !-f "/tmp/ferkee_result.json";
 
 	my $crawlResult = json_file_to_perl ("/tmp/ferkee_result.json");
-	$crawlResult = $crawlResult->[0];
-	my $thisNotionalDecisionURL = $crawlResult->{'url'};
+	my $notionalResult = $crawlResult->[0];
+	my $thisNotionalDecisionURL = $notionalResult->{'url'};
 	print ("Notional Decision URL: $thisNotionalDecisionURL\n");
   if ($thisNotionalDecisionURL ne $notionalDecisionURL) {
     $notionalDecisionURL = $thisNotionalDecisionURL;
@@ -68,7 +73,7 @@ while (1) {
     %seenDecisions = ();
   }
 
-	my $decisions = $crawlResult->{'decisions'}; 
+	my $decisions = $notionalResult->{'decisions'}; 
 
   # Loop through our decisions and grab the ones that match our alerting pattern
 	for my $decision (@$decisions) {
@@ -83,6 +88,27 @@ while (1) {
 		}
 	}
 
+  my $noticeResult = $crawlResult->[1];
+	my $thisNoticeURL = $noticeResult->{'url'};
+	print ("Notice URL: $thisNoticeURL\n");
+  if ($thisNoticeURL ne $noticeURL) {
+    $noticeURL = $thisNoticeURL;
+    $adminAlert .= "A new Notice Page has been published: $noticeURL\n";
+    %seenNotices = ();
+  }
+
+	my $notices = $noticeResult->{'notices'}; 
+  for my $notice (@$notices) {
+    my $dockets = $notice->{'dockets'};
+    my $description = $notice->{'description'};
+    my $urls = $notice->{'urls'};
+    if (!$seenNotices{$dockets}) {
+      $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
+      $seenNotices{$dockets} = $urls;
+    }
+  }
+
+
   # Send admin alerts
   if ($adminAlert) {
 		&sendAlert($adminTo, "Ferkee Admin Notice", $adminAlert);
@@ -93,7 +119,13 @@ while (1) {
 		&sendAlert($to, "Ferkee Alert!  Certificate Pipeline Decision Published", $docketAlert);
   }
 
+  # Send Notice alerts
+  if ($noticeAlert) {
+		&sendAlert($to, "Ferkee Alert!  FERC CP Notice(s) Isused", $noticeAlert);
+  }
+
   &dumpState();
+  &newDumpState();
   sleep (60);
 }
 
@@ -110,6 +142,19 @@ sub sendAlert {
 		close(SENDEMAIL);
 	}
 
+}
+
+sub newDumpState() {
+  my @state = (
+    \$notionalDecisionURL,
+    \%seenDecisions,
+    \$noticeURL,
+    \%seenNotices
+  );
+  my $json = create_json (\@state);
+  open FERKEE_STATE, ">ferkeeState.txt";
+  print FERKEE_STATE $json;
+  close FERKEE_STATE;
 }
 
 sub dumpState() {

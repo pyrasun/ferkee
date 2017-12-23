@@ -35,6 +35,9 @@ sudo cpan JSON::Parse
 # Install Config::Properties Perl module
 sudo cpan Config::Properties
 
+# Install JSON::Create Perl module
+sudo cpan JSON::Create
+
 # Install Scrapy
 sudo pip install scrapy
 
