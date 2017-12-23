@@ -145,14 +145,13 @@ sub sendAlert {
 }
 
 sub newDumpState() {
+  my %dumpVars = ("notionalDecisionURL", $notionalDecisionURL, "noticeURL", $noticeURL, "seenDecisions", \%seenDecisions, "seenNotices", \%seenNotices);
+ 
   my @state = (
-    \$notionalDecisionURL,
-    \%seenDecisions,
-    \$noticeURL,
-    \%seenNotices
+    \%dumpVars,
   );
   my $json = create_json (\@state);
-  open FERKEE_STATE, ">ferkeeState.txt";
+  open FERKEE_STATE, ">ferkeeState.json";
   print FERKEE_STATE $json;
   close FERKEE_STATE;
 }

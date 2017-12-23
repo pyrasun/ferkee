@@ -3,6 +3,7 @@ import re
 
 class FercNotionalSpider(scrapy.Spider):
     name = "ferkee"
+    noticeURL = "";
 
     # Normal operation - scrape the ferc.gov page and find the most recent notional decision URL, and scrape that
     def start_requests(self):
@@ -68,15 +69,15 @@ class FercNotionalSpider(scrapy.Spider):
 
     # Parse a saved search result, this is basically a pre-filled form
     def parseSavedSearch(self, response):
+        self.noticeURL = response.request.url
         return [scrapy.http.FormRequest.from_response(response,
                     callback=self.parseNoticePage)]
     
     # Parse a FERC notice saved search
     def parseNoticePage(self, response):
         print ("parseNoticePage: Response %s" % response);
-        myUrl = response.request.url
         result = {}
-        result['url'] = myUrl;
+        result['url'] = self.noticeURL;
         result['notices'] = []
         row = 0
         for tr in response.xpath('//tr'):
