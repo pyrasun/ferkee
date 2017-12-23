@@ -33,6 +33,16 @@ class FercNotionalSpider(scrapy.Spider):
           print response.urljoin(orderPageHref);
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
+      noticePages = response.xpath('//a[contains(@href, "&typ=Notice")]') 
+      notFound = True
+      for index, link in enumerate(noticePages):
+        noticePageHref = link.xpath('@href').extract()[0];
+        if (notFound): 
+          notFound = False
+          print response.urljoin(noticePageHref);
+          yield scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
+      
+
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
         myUrl = response.request.url
@@ -55,4 +65,31 @@ class FercNotionalSpider(scrapy.Spider):
             else:
               print ("No URL found for %s" % docket);
           return result
+
+    # Parse a saved search result, this is basically a pre-filled form
+    def parseSavedSearch(self, response):
+        return [scrapy.http.FormRequest.from_response(response,
+                    callback=self.parseNoticePage)]
+    
+    # Parse a FERC notice saved search
+    def parseNoticePage(self, response):
+        print ("parseNoticePage: Response %s" % response);
+        myUrl = response.request.url
+        result = {}
+        result['url'] = myUrl;
+        result['notices'] = []
+        row = 0
+        for tr in response.xpath('//tr'):
+            dockets = ' '.join (tr.xpath('td[3]/text()').extract())
+            dockets = dockets.lstrip().rstrip()
+            description = ' '.join (tr.xpath('td[4]/text()').extract())
+            description = description.lstrip().rstrip()
+            URLs = ' '.join(tr.xpath('td[6]/table/tr/td/a').extract())
+            if (dockets and description and dockets.startswith("CP")):
+              print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
+              notice = {'dockets': dockets, 'urls':URLs, 'description':description}
+              result['notices'].append(notice)
+            row = row + 1
+
+        return result
 

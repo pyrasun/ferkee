@@ -1,0 +1,3 @@
+export PATH=~/sendEmail-v1.56:$PATH
+cd ~/ferkee/
+nohup ./ferkee.pl -c ~/ferkee.props.prod >>~/ferkee.prod.log &
