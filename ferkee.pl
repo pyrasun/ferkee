@@ -127,14 +127,14 @@ while (1) {
 
   # Send Notice alerts
   if ($noticeAlert) {
-		&sendAlert($to, "Ferkee Alert!  FERC CP Notice(s) Isused", $noticeAlert);
+		&sendAlert($noticeTo, "Ferkee Alert!  FERC CP Notice(s) Isused", $noticeAlert);
   } else {
     print "No notice alerts\n";
   }
 
   # &dumpState();
   &newDumpState();
-  sleep (10);
+  sleep (60);
 }
 
 sub sendAlert {
