@@ -34,7 +34,6 @@ if ($opt_n) {
 print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern, sendMail=$sendMail\n";
 
 my $notionalDecisionURL = "";
-my $noticeURL = "";
 my %seenDecisions = ();
 my %seenNotices = ();
 
@@ -67,7 +66,8 @@ while (1) {
   next if (-s $resultFile == 0);
 
 	my $crawlResult = json_file_to_perl ($resultFile);
-	my $notionalResult = $crawlResult->[0];
+  my $resultCount = 0;
+	my $notionalResult = $crawlResult->[$resultCount++];
 	my $thisNotionalDecisionURL = $notionalResult->{'url'};
 	print ("Notional Decision URL: $thisNotionalDecisionURL\n");
   if ($thisNotionalDecisionURL ne $notionalDecisionURL) {
@@ -91,24 +91,25 @@ while (1) {
 		}
 	}
 
-  my $noticeResult = $crawlResult->[1];
-	my $thisNoticeURL = $noticeResult->{'url'};
-	print ("Notice URL: $thisNoticeURL\n");
-  if ($thisNoticeURL ne $noticeURL) {
-    $noticeURL = $thisNoticeURL;
-    $adminAlert .= "A new Notice Page has been published: $noticeURL\n\n";
-    %seenNotices = ();
-  }
+  my $resultLen = scalar @$crawlResult;
 
-	my $notices = $noticeResult->{'notices'}; 
-  for my $notice (@$notices) {
-    my $dockets = $notice->{'dockets'};
-    my $description = $notice->{'description'};
-    my $urls = $notice->{'urls'};
-    if (!$seenNotices{$dockets}) {
-      $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
-      $seenNotices{$dockets} = $urls;
+  while ($resultCount < $resultLen) {
+
+    my $noticeResult = $crawlResult->[$resultCount];
+    my $thisNoticeURL = $noticeResult->{'url'};
+    print ("Notice URL: $thisNoticeURL\n");
+
+    my $notices = $noticeResult->{'notices'}; 
+    for my $notice (@$notices) {
+      my $dockets = $notice->{'dockets'};
+      my $description = $notice->{'description'};
+      my $urls = $notice->{'urls'};
+      if (!$seenNotices{$dockets}) {
+        $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
+        $seenNotices{$dockets} = $urls;
+      }
     }
+    $resultCount++;
   }
 
   # Send admin alerts
@@ -153,7 +154,7 @@ sub sendAlert {
 }
 
 sub newDumpState() {
-  my %dumpVars = ("notionalDecisionURL", $notionalDecisionURL, "noticeURL", $noticeURL, "seenDecisions", \%seenDecisions, "seenNotices", \%seenNotices);
+  my %dumpVars = ("notionalDecisionURL", $notionalDecisionURL, "seenDecisions", \%seenDecisions, "seenNotices", \%seenNotices);
  
   my @state = (
     \%dumpVars,
@@ -202,7 +203,6 @@ sub newReadState() {
 	my $result = $state->[0];
 
   $notionalDecisionURL = $result->{'notionalDecisionURL'};
-  $noticeURL = $result->{'noticeURL'};
 
   my $savedDecisions = $result->{'seenDecisions'};
   for my $dkey (keys(%$savedDecisions)) {

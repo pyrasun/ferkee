@@ -35,14 +35,10 @@ class FercNotionalSpider(scrapy.Spider):
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
       noticePages = response.xpath('//a[contains(@href, "&typ=Notice")]') 
-      notFound = True
       for index, link in enumerate(noticePages):
         noticePageHref = link.xpath('@href').extract()[0];
-        if (notFound): 
-          notFound = False
-          print response.urljoin(noticePageHref);
-          yield scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
-      
+        print response.urljoin(noticePageHref);
+        yield scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
 
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
