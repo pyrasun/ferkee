@@ -42,7 +42,8 @@ if ($opt_i) {
 	print ("Ignoring saved state\n");
 } else {
 	print "Reading ferkeeState.txt...\n";
-	&readState();
+	# &readState();
+	&newReadState();
 }
 
 print "Entering bot loop\n";
@@ -61,15 +62,17 @@ while (1) {
 	unlink "/tmp/ferkee_result.json";
   my @lines = `scrapy crawl ferkee >ferkee.log 2>&1`;
 
-	next if !-f "/tmp/ferkee_result.json";
+	my $resultFile = "/tmp/ferkee_result.json";
+	next if !-f $resultFile;
+  next if (-s $resultFile == 0);
 
-	my $crawlResult = json_file_to_perl ("/tmp/ferkee_result.json");
+	my $crawlResult = json_file_to_perl ($resultFile);
 	my $notionalResult = $crawlResult->[0];
 	my $thisNotionalDecisionURL = $notionalResult->{'url'};
 	print ("Notional Decision URL: $thisNotionalDecisionURL\n");
   if ($thisNotionalDecisionURL ne $notionalDecisionURL) {
     $notionalDecisionURL = $thisNotionalDecisionURL;
-    $adminAlert .= "A new Notional Decision page has been published: $notionalDecisionURL\n";
+    $adminAlert .= "A new Notional Decision page has been published: $notionalDecisionURL\n\n";
     %seenDecisions = ();
   }
 
@@ -93,7 +96,7 @@ while (1) {
 	print ("Notice URL: $thisNoticeURL\n");
   if ($thisNoticeURL ne $noticeURL) {
     $noticeURL = $thisNoticeURL;
-    $adminAlert .= "A new Notice Page has been published: $noticeURL\n";
+    $adminAlert .= "A new Notice Page has been published: $noticeURL\n\n";
     %seenNotices = ();
   }
 
@@ -108,25 +111,30 @@ while (1) {
     }
   }
 
-
   # Send admin alerts
   if ($adminAlert) {
 		&sendAlert($adminTo, "Ferkee Admin Notice", $adminAlert);
+  } else {
+    print "No Admin alerts\n";
   }
 
   # Send docket alerts (CP decisions)
   if ($docketAlert) {
 		&sendAlert($to, "Ferkee Alert!  Certificate Pipeline Decision Published", $docketAlert);
+  } else {
+    print "No notional decision alerts\n";
   }
 
   # Send Notice alerts
   if ($noticeAlert) {
 		&sendAlert($to, "Ferkee Alert!  FERC CP Notice(s) Isused", $noticeAlert);
+  } else {
+    print "No notice alerts\n";
   }
 
-  &dumpState();
+  # &dumpState();
   &newDumpState();
-  sleep (60);
+  sleep (10);
 }
 
 sub sendAlert {
@@ -182,6 +190,29 @@ sub readState() {
     chomp ($docket);
     chomp ($url);
     $seenDecisions{$docket} = $url;
+  }
+}
+
+sub newReadState() {
+  if (!-f "ferkeeState.json") {
+    print "No ferkeeState.txt found, first run\n";
+    return;
+  }
+	my $state = json_file_to_perl ("ferkeeState.json");
+	my $result = $state->[0];
+
+  $notionalDecisionURL = $result->{'notionalDecisionURL'};
+  $noticeURL = $result->{'noticeURL'};
+
+  my $savedDecisions = $result->{'seenDecisions'};
+  for my $dkey (keys(%$savedDecisions)) {
+    my $dvalue = $savedDecisions->{$dkey};
+    $seenDecisions{$dkey} = $dvalue;
+  }
+  my $savedNotices = $result->{'seenNotices'};
+  for my $nkey (keys(%$savedNotices)) {
+    my $nvalue = $savedNotices->{$nkey};
+    $seenNotices{$nkey} = $nvalue;
   }
 }
 

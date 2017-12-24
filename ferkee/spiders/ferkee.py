@@ -67,7 +67,8 @@ class FercNotionalSpider(scrapy.Spider):
               print ("No URL found for %s" % docket);
           return result
 
-    # Parse a saved search result, this is basically a pre-filled form
+    # Parse a saved search result, this is basically a pre-filled form that we have to manually submit
+    # (on the browser the submit is done via JavaScript onload())
     def parseSavedSearch(self, response):
         self.noticeURL = response.request.url
         return [scrapy.http.FormRequest.from_response(response,
@@ -85,10 +86,19 @@ class FercNotionalSpider(scrapy.Spider):
             dockets = dockets.lstrip().rstrip()
             description = ' '.join (tr.xpath('td[4]/text()').extract())
             description = description.lstrip().rstrip()
-            URLs = ' '.join(tr.xpath('td[6]/table/tr/td/a').extract())
+            URLs = tr.xpath('td[6]/table/tr/td/a')
+            urlArray = []
+            for url in URLs:
+                href = url.xpath("@href").extract_first()
+                href = response.urljoin(href)
+                urlText = url.xpath("text()").extract_first()
+                combo = urlText + ": " + href + "\n"
+                urlArray.append(combo)
+
             if (dockets and description and dockets.startswith("CP")):
+              urlText = ' '.join (urlArray)
               print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
-              notice = {'dockets': dockets, 'urls':URLs, 'description':description}
+              notice = {'dockets': dockets, 'urls':urlText, 'description':description}
               result['notices'].append(notice)
             row = row + 1
 
