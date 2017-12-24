@@ -104,9 +104,10 @@ while (1) {
       my $dockets = $notice->{'dockets'};
       my $description = $notice->{'description'};
       my $urls = $notice->{'urls'};
-      if (!$seenNotices{$dockets}) {
+      my $key = $thisNoticeURL . " - " . $dockets;
+      if (!$seenNotices{$key}) {
         $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
-        $seenNotices{$dockets} = $urls;
+        $seenNotices{$key} = $urls;
       }
     }
     $resultCount++;
