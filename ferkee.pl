@@ -33,7 +33,6 @@ if ($opt_n) {
 
 print "Options: to:$to, from:$from, adminTo=$adminTo, decision_pattern=$decisionPattern, sendMail=$sendMail\n";
 
-my $notionalDecisionURL = "";
 my %seenDecisions = ();
 my %seenNotices = ();
 
@@ -41,7 +40,6 @@ if ($opt_i) {
 	print ("Ignoring saved state\n");
 } else {
 	print "Reading ferkeeState.txt...\n";
-	# &readState();
 	&newReadState();
 }
 
@@ -67,50 +65,51 @@ while (1) {
 
 	my $crawlResult = json_file_to_perl ($resultFile);
   my $resultCount = 0;
-	my $notionalResult = $crawlResult->[$resultCount++];
-	my $thisNotionalDecisionURL = $notionalResult->{'url'};
-	print ("Notional Decision URL: $thisNotionalDecisionURL\n");
-  if ($thisNotionalDecisionURL ne $notionalDecisionURL) {
-    $notionalDecisionURL = $thisNotionalDecisionURL;
-    $adminAlert .= "A new Notional Decision page has been published: $notionalDecisionURL\n\n";
-    %seenDecisions = ();
-  }
-
-	my $decisions = $notionalResult->{'decisions'}; 
-
-  # Loop through our decisions and grab the ones that match our alerting pattern
-	for my $decision (@$decisions) {
-		my $docket = $decision->{'docket'};
-		my $url = $decision->{'decisionUrl'};
-		print ("\tDocket $docket, Decision $url\n");
-		next if !($docket =~ /$decisionPattern/);
-		if (!$seenDecisions{$docket}) {
-			$docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
-			$seenDecisions{$docket} = $url;
-			$docketAlert .= &getDecisionText($url) . "\n\n";
-		}
-	}
 
   my $resultLen = scalar @$crawlResult;
-
   while ($resultCount < $resultLen) {
+    my $result = $crawlResult->[$resultCount++];
 
-    my $noticeResult = $crawlResult->[$resultCount];
-    my $thisNoticeURL = $noticeResult->{'url'};
-    print ("Notice URL: $thisNoticeURL\n");
+    my $decisions = $result->{'decisions'}; 
+    if ($decisions) {
+      #
+      # Process notional decisions (todo: Refactor into sub)
+      #
+      my $thisNotionalDecisionURL = $result->{'url'};
+      print ("Notional Decision URL: $thisNotionalDecisionURL\n");
 
-    my $notices = $noticeResult->{'notices'}; 
-    for my $notice (@$notices) {
-      my $dockets = $notice->{'dockets'};
-      my $description = $notice->{'description'};
-      my $urls = $notice->{'urls'};
-      my $key = $thisNoticeURL . " - " . $dockets;
-      if (!$seenNotices{$key}) {
-        $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
-        $seenNotices{$key} = $urls;
+      # Loop through our decisions and grab the ones that match our alerting pattern
+      for my $decision (@$decisions) {
+        my $docket = $decision->{'docket'};
+        my $url = $decision->{'decisionUrl'};
+        print ("\tDocket $docket, Decision $url\n");
+        next if !($docket =~ /$decisionPattern/);
+        my $key = $thisNotionalDecisionURL . " - " . $docket;
+        if (!$seenDecisions{$key}) {
+          $docketAlert .= "***************  New Certificate Pipeline Decision: $docket: $url\n";
+          $seenDecisions{$key} = $url;
+          $docketAlert .= &getDecisionText($url) . "\n\n";
+        }
+      }
+    } else {
+      #
+      # Process notices (todo: Refactor into sub)
+      #
+      my $thisNoticeURL = $result->{'url'};
+      print ("Notice URL: $thisNoticeURL\n");
+
+      my $notices = $result->{'notices'}; 
+      for my $notice (@$notices) {
+        my $dockets = $notice->{'dockets'};
+        my $description = $notice->{'description'};
+        my $urls = $notice->{'urls'};
+        my $key = $thisNoticeURL . " - " . $dockets;
+        if (!$seenNotices{$key}) {
+          $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
+          $seenNotices{$key} = $urls;
+        }
       }
     }
-    $resultCount++;
   }
 
   # Send admin alerts
@@ -134,7 +133,6 @@ while (1) {
     print "No notice alerts\n";
   }
 
-  # &dumpState();
   &newDumpState();
   sleep (60);
 }
@@ -155,7 +153,7 @@ sub sendAlert {
 }
 
 sub newDumpState() {
-  my %dumpVars = ("notionalDecisionURL", $notionalDecisionURL, "seenDecisions", \%seenDecisions, "seenNotices", \%seenNotices);
+  my %dumpVars = ("seenDecisions", \%seenDecisions, "seenNotices", \%seenNotices);
  
   my @state = (
     \%dumpVars,
@@ -166,35 +164,6 @@ sub newDumpState() {
   close FERKEE_STATE;
 }
 
-sub dumpState() {
-  open FERKEE_STATE, ">ferkeeState.txt";
-  print FERKEE_STATE "$notionalDecisionURL\n";
-
-  while(my ($docket, $url) = each %seenDecisions) {
-    print FERKEE_STATE "$docket;$url\n";
-  }
-
-  close FERKEE_STATE;
-}
-
-sub readState() {
-  if (!-f "ferkeeState.txt") {
-    print "No ferkeeState.txt found, first run\n";
-    return;
-  }
-  open (FERKEE_STATE, "ferkeeState.txt");
-  my @lines = <FERKEE_STATE>;
-  $notionalDecisionURL = shift(@lines);
-  chomp($notionalDecisionURL);
-  foreach my $decision (@lines) {
-    chomp ($decision);
-    my ($docket, $url) = split (";", $decision);
-    chomp ($docket);
-    chomp ($url);
-    $seenDecisions{$docket} = $url;
-  }
-}
-
 sub newReadState() {
   if (!-f "ferkeeState.json") {
     print "No ferkeeState.txt found, first run\n";
@@ -202,8 +171,6 @@ sub newReadState() {
   }
 	my $state = json_file_to_perl ("ferkeeState.json");
 	my $result = $state->[0];
-
-  $notionalDecisionURL = $result->{'notionalDecisionURL'};
 
   my $savedDecisions = $result->{'seenDecisions'};
   for my $dkey (keys(%$savedDecisions)) {
