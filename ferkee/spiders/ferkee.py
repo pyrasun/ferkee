@@ -39,6 +39,12 @@ class FercNotionalSpider(scrapy.Spider):
         print response.urljoin(noticePageHref);
         yield scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
 
+      delegatedOrderPages = response.xpath('//a[contains(@href, "&typ=Delegated")]') 
+      for index, link in enumerate(delegatedOrderPages):
+        delegatedOrderPageHref = link.xpath('@href').extract()[0];
+        print response.urljoin(delegatedOrderPageHref);
+        yield scrapy.Request(response.urljoin(delegatedOrderPageHref), callback=self.parseSavedSearch)
+
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
         myUrl = response.request.url

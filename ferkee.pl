@@ -105,7 +105,7 @@ while (1) {
         my $urls = $notice->{'urls'};
         my $key = $thisNoticeURL . " - " . $dockets;
         if (!$seenNotices{$key}) {
-          $noticeAlert .= "*************** FERC CP Notice $dockets\n$description\n$urls\n\n";
+          $noticeAlert .= "*************** FERC CP Notice or Delegated Order $dockets\n$description\n$urls\n\n";
           $seenNotices{$key} = $urls;
         }
       }
