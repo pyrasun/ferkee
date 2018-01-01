@@ -21,6 +21,27 @@ Runtime dependencies are shown below:
 - Scrapy 1.4
 - sendemail 1.5x
 
+Local Install
+=============================
+
+Perl dependencies can be installed via cpan
+Python dependencies can be installed via pip (I prefer Anaconda Python)
+
+Amazon BOTO3 (Amazon Python interface):
+
+# Local dev install only
+# Install boto3
+
+pip install boto3
+
+AWS Access credentials (for accessing DynamoDB) locally
+
+  [default]
+  aws_access_key_id=Your Access Key Here
+  aws_secret_access_key=Your Secret Access Key Here
+  region=us-east-1
+
+
 AWS Linux Raw Install
 =============================
 
@@ -55,7 +76,7 @@ Patch sendEmail.pl line 1906 - comment out line, add in line below as shown here
   if (! IO::Socket::SSL->start_SSL($SERVER)) {
 
 
-#Install PDFMiner
+# Install PDFMiner
 See https://pypi.python.org/pypi/pdfminer/
 Download source, run setup.py install
 

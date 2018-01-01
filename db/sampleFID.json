@@ -1,0 +1,19 @@
+{
+  "docket": "CP15-558-000",
+  "announceURL": "http://ferc.gov/foop",
+  "published": {
+    "publishType":"Notice",
+    "description":"Letter ordering stuff to things",
+    "urls": [
+      {
+        "Type":"Word",
+        "url":"https://elibrary.ferc.gov/idmws/common/opennat.asp?fileID=14786066"
+      },
+      {
+        "Type":"FERC Generated PDF",
+        "url":"https://elibrary.ferc.gov/idmws/common/opennat.asp?fileID=14786236"
+      }
+    ]
+  }
+}
+
