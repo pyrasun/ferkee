@@ -37,13 +37,17 @@ class FercNotionalSpider(scrapy.Spider):
       for index, link in enumerate(noticePages):
         noticePageHref = link.xpath('@href').extract()[0];
         print response.urljoin(noticePageHref);
-        yield scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
+        noticeRequest= scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
+        noticeRequest.meta['issuanceType'] = 'notices'
+        yield noticeRequest
 
       delegatedOrderPages = response.xpath('//a[contains(@href, "&typ=Delegated")]') 
       for index, link in enumerate(delegatedOrderPages):
         delegatedOrderPageHref = link.xpath('@href').extract()[0];
         print response.urljoin(delegatedOrderPageHref);
-        yield scrapy.Request(response.urljoin(delegatedOrderPageHref), callback=self.parseSavedSearch)
+        delegatedOrderRequest = scrapy.Request(response.urljoin(delegatedOrderPageHref), callback=self.parseSavedSearch)
+        delegatedOrderRequest.meta['issuanceType'] = 'delegated_orders'
+        yield delegatedOrderRequest
 
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
@@ -71,16 +75,19 @@ class FercNotionalSpider(scrapy.Spider):
     # Parse a saved search result, this is basically a pre-filled form that we have to manually submit
     # (on the browser the submit is done via JavaScript onload())
     def parseSavedSearch(self, response):
-        request = scrapy.http.FormRequest.from_response(response, callback=self.parseNoticePage)
+        request = scrapy.http.FormRequest.from_response(response, callback=self.parseSavedSearchResult)
         request.meta['originalURL'] = response.request.url;
+        request.meta['issuanceType'] = response.request.meta['issuanceType']
         return [request]
     
-    # Parse a FERC notice saved search
-    def parseNoticePage(self, response):
-        print ("parseNoticePage: Response %s" % response);
+    # Parse a FERC saved search
+    def parseSavedSearchResult(self, response):
+        issuanceType = response.meta['issuanceType']
+        print ("\n\n*****************************************");
+        print ("parseSavedSearchResults %s: Response %s" % (issuanceType, response));
         result = {}
         result['url'] = response.meta['originalURL']
-        result['notices'] = []
+        result[issuanceType] = []
         row = 0
         for tr in response.xpath('//tr'):
             dockets = ' '.join (tr.xpath('td[3]/text()').extract())
@@ -99,8 +106,8 @@ class FercNotionalSpider(scrapy.Spider):
             if (dockets and description and dockets.startswith("CP")):
               urlText = ' '.join (urlArray)
               print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
-              notice = {'dockets': dockets, 'urls':urlText, 'description':description}
-              result['notices'].append(notice)
+              issuance = {'dockets': dockets, 'urls':urlText, 'description':description}
+              result[issuanceType].append(issuance)
             row = row + 1
 
         return result
