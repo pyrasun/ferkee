@@ -3,33 +3,71 @@ from __future__ import print_function # Python 2/3 compatibility
 from botocore.exceptions import ClientError
 import boto3
 import pprint
-
+import subprocess
+import os
 
 # Define your item pipelines here
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
-
-class FerkeePipeline(object):
+# 
+# Transforms 
+#
+class TransformFerkeeObjects(object):
 
     def __init__(self):
         self.dynamodb = None;
         self.pp = pprint.PrettyPrinter(indent=4)
-
+        self.noDBMode = False
 
     def open_spider(self, spider):
-        self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+        if (spider.noDBMode):
+            self.noDBMode = spider.noDBMode
+        else:
+            self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 
+    def run_command(self, command):
+        print ("Running command: %s" % command)
+        p = subprocess.Popen(command,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, shell=True)
+        return p.communicate('')[0]
 
-    def saveIssuanceToDB(self, issuance):
+    #
+    # Pulls out the decision PDF from the specific URL, and parses the first section to act as a description
+    #
+    def getDecisionText(self, url):
+        print ("================ getDecisionText")
+        url = url.replace('http:', 'https:')
+        print ("URL=%s" % url)
+        urlParts = url.split('/')
+        fileName = urlParts[len(urlParts)-1]
+        curlOutput = self.run_command('cd /tmp; curl -O ' + url)
+
+        print ("Curl output: %s" % ''.join(curlOutput))
+
+        outputFile = "/tmp/" + fileName
+        print ("Output file: %s" % outputFile)
+
+        command = 'pdf2txt.py -m 1 -t text -L 1.0 ' + outputFile
+        print ("Command=%s" % command)
+        pdf2text = self.run_command(command)
+
+        pdf2text = pdf2text.split("\n")
+
+        pdf2text = [x for x in pdf2text if x.strip()]
+
+        text =  '\n'.join(pdf2text)
+        print ("PDF TEXT: %s" % text)
+        os.remove(outputFile)
+        return text
+
+    def seenIssuanceBefore(self, issuance):
+        if self.noDBMode:
+            return False;
+
         table = self.dynamodb.Table('FIDTest')
-        self.pp.pprint(issuance)
-
-        response = None
-
-        doPut = False
-
         try:
             response = table.get_item(
                 Key={
@@ -41,20 +79,22 @@ class FerkeePipeline(object):
             print("DynamoDB error on get_itemn: %s" % e.response['Error']['Message'])
 
         if response and 'Item' in response:
-            print("GetItem succeeded, skipping add")
+            return True
         else:
-            doPut = True
+            return False
 
-        if doPut:
-            print ("Item does not exist, adding to DynamoDB")
-            try:
-                table.put_item (Item=issuance)
-            except ClientError as e:
-                print("DynamoDB Error on put_item: %s" % e.response['Error']['Message'])
-                self.pp.pprint(e.response)
 
-        print("Done")
+    def saveIssuanceToDB(self, issuance):
+        if self.noDBMode:
+            return None;
 
+        table = self.dynamodb.Table('FIDTest')
+
+        try:
+            table.put_item (Item=issuance)
+        except ClientError as e:
+            print("DynamoDB Error on put_item: %s" % e.response['Error']['Message'])
+            self.pp.pprint(e.response)
 
 
     def process_item(self, item, spider):
@@ -73,6 +113,7 @@ class FerkeePipeline(object):
             issuanceType = 'DelegatedOrder'
             savedSearch = True
 
+        newIssuances = []
 
         if (savedSearch):
             for item in items:
@@ -84,10 +125,12 @@ class FerkeePipeline(object):
                         'docket': docket,
                         'announceURL': url,
                         'Type': issuanceType,
-                        'Description': description,
+                        'description': description,
                         'urls': urls
                     }
-                    self.saveIssuanceToDB(issuance)
+                    if (not self.seenIssuanceBefore(issuance)):
+                        self.saveIssuanceToDB(issuance)
+                        newIssuances.append(issuance)
         elif ('decisions' in item):
             issuanceType = 'Decision'
             decisions = item['decisions']
@@ -99,11 +142,24 @@ class FerkeePipeline(object):
                     'docket': docket,
                     'announceURL': url,
                     'Type': issuanceType,
-                    'Description': description,
+                    'description': description,
                     'urls': [decision['decisionUrl']]
                 }
-                self.saveIssuanceToDB(issuance)
+                if (not self.seenIssuanceBefore(issuance)):
+                    issuance['description'] = self.getDecisionText(issuanceURL)
+                    self.saveIssuanceToDB(issuance);
+                    newIssuances.append(issuance)
         
+        return {"newIssuances": newIssuances}
+
+class ProcessNewFerkeeItems(object):
+    def __init__(self):
+        self.pp = pprint.PrettyPrinter(indent=4)
+
+    def process_item(self, item, spider):
+        self.pp.pprint (item)
         return item
+
+
 
 

@@ -66,7 +66,8 @@ ROBOTSTXT_OBEY = True
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'ferkee.pipelines.FerkeePipeline': 20,
+    'ferkee.pipelines.TransformFerkeeObjects': 20,
+    'ferkee.pipelines.ProcessNewFerkeeItems': 40,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

@@ -4,6 +4,13 @@ import re
 class FercNotionalSpider(scrapy.Spider):
     name = "ferkee"
 
+    def __init__(self, argNoDBMode=False, *args, **kwargs):
+        super(FercNotionalSpider, self).__init__(*args, **kwargs)
+        self.noDBMode = argNoDBMode
+        print ("NoDBMode = %s" % self.noDBMode)
+        print ("argNoDBMode = %s" % argNoDBMode)
+
+
     # Normal operation - scrape the ferc.gov page and find the most recent notional decision URL, and scrape that
     def start_requests(self):
       urls = [
