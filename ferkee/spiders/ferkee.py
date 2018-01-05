@@ -97,16 +97,17 @@ class FercNotionalSpider(scrapy.Spider):
             URLs = tr.xpath('td[6]/table/tr/td/a')
             urlArray = []
             for url in URLs:
+                urlData = {}
                 href = url.xpath("@href").extract_first()
                 href = response.urljoin(href)
                 urlText = url.xpath("text()").extract_first()
-                combo = urlText + ": " + href + "\n"
-                urlArray.append(combo)
+                urlData['url'] = href;
+                urlData['Type'] = urlText;
+                urlArray.append(urlData)
 
             if (dockets and description and dockets.startswith("CP")):
-              urlText = ' '.join (urlArray)
               print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
-              issuance = {'dockets': dockets, 'urls':urlText, 'description':description}
+              issuance = {'dockets': dockets, 'urls':urlArray, 'description':description}
               result[issuanceType].append(issuance)
             row = row + 1
 

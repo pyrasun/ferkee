@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function # Python 2/3 compatibility
+from botocore.exceptions import ClientError
 import boto3
 import pprint
+
 
 # Define your item pipelines here
 #
@@ -20,8 +22,39 @@ class FerkeePipeline(object):
         self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 
 
-    def print_issuance(self, issuanceType, issuanceURL, docket, description):
-        print ("Issuance: %s %s %s %s" % (issuanceType, docket, issuanceURL, description))
+    def saveIssuanceToDB(self, issuance):
+        table = self.dynamodb.Table('FIDTest')
+        self.pp.pprint(issuance)
+
+        response = None
+
+        doPut = False
+
+        try:
+            response = table.get_item(
+                Key={
+                    'docket': issuance['docket'],
+                    'announceURL': issuance['announceURL']
+                }
+            )
+        except ClientError as e:
+            print("DynamoDB error on get_itemn: %s" % e.response['Error']['Message'])
+
+        if response and 'Item' in response:
+            print("GetItem succeeded, skipping add")
+        else:
+            doPut = True
+
+        if doPut:
+            print ("Item does not exist, adding to DynamoDB")
+            try:
+                table.put_item (Item=issuance)
+            except ClientError as e:
+                print("DynamoDB Error on put_item: %s" % e.response['Error']['Message'])
+                self.pp.pprint(e.response)
+
+        print("Done")
+
 
 
     def process_item(self, item, spider):
@@ -32,33 +65,45 @@ class FerkeePipeline(object):
         savedSearch = False
         if ('notices' in item):
             items = item['notices']
-            issuanceType = 'notice'
+            issuanceType = 'Notice'
             savedSearch = True
 
         if ('delegated_orders' in item):
             items = item['delegated_orders']
-            issuanceType = 'delegated_order'
+            issuanceType = 'DelegatedOrder'
             savedSearch = True
 
+
         if (savedSearch):
-            for issuance in items:
-                dockets = issuance['dockets'].split(' ')
-                description = issuance['description']
-                urls = issuance['urls']
+            for item in items:
+                dockets = item['dockets'].split(' ')
+                description = item['description']
+                urls = item['urls']
                 for docket in dockets:
-                    self.print_issuance(issuanceType, urls, docket, description)
-
-
-        if ('decisions' in item):
-            issuanceType = 'decision'
+                    issuance = {
+                        'docket': docket,
+                        'announceURL': url,
+                        'Type': issuanceType,
+                        'Description': description,
+                        'urls': urls
+                    }
+                    self.saveIssuanceToDB(issuance)
+        elif ('decisions' in item):
+            issuanceType = 'Decision'
             decisions = item['decisions']
             for decision in decisions:
                 issuanceURL = decision['decisionUrl']
                 docket = decision['docket']
                 description = "TBD"
-                self.print_issuance(issuanceType, issuanceURL, docket, description)
+                issuance = {
+                    'docket': docket,
+                    'announceURL': url,
+                    'Type': issuanceType,
+                    'Description': description,
+                    'urls': [decision['decisionUrl']]
+                }
+                self.saveIssuanceToDB(issuance)
         
-
         return item
 
 

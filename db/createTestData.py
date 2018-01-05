@@ -9,11 +9,11 @@ notice = {
     'description':'Notice of Request under Blanket Authorization re Equitrans, L.P. under CP18-32.',
     'urls': [
       {
-        'Type':'Word',
+        'type':'Word',
         'url':'https://elibrary.ferc.gov/idmws/common/opennat.asp?fileID=14785945'
       },
       {
-        'Type':'FERC Generated PDF',
+        'type':'FERC Generated PDF',
         'url':'https://elibrary.ferc.gov/idmws/common/opennat.asp?fileID=14786066'
 
       }
