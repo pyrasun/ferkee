@@ -18,6 +18,7 @@ def run_command(command, toSend=None):
     return p.communicate(toSend)[0]
 
 def send_alert(to, subject, alert):
+    alert = alert.replace("'", "")
     print ("Email alert=%s" % alert)
     if ferkee_props.props['noEmail']:
         return None
@@ -157,16 +158,32 @@ class ProcessNewFerkeeItems(object):
         self.pp = pprint.PrettyPrinter(indent=4)
 
     def process_item(self, item, spider):
-        alertItems = []
+        decisionAlertItems = []
+        otherAlertItems = []
+
         for issuance in item['newIssuances']:
             if (issuance['type'] == 'Decision'):
+                if (len(decisionAlertItems) == 0):
+                    decisionAlertItems.append("Daily Decision Issuance URL: %s\n\n" % (issuance['announceURL']))
                 urls = issuance['urls'][0]
                 url = urls['url']
                 alertText = "***************  New Certificate Pipeline Decision: %s: %s\n%s" % (issuance['docket'], url, issuance['description'])
-                # alertText = "***************  New Certificate Pipeline Decision: %s: %s\n" % (issuance['docket'], url)
-                alertItems.append(alertText)
-        if (len(alertItems) > 0):
-            send_alert(ferkee_props.props['to'], 'Ferkee Alert! Certificate Pipeline Decision(s) Published', '\n\n'.join (alertItems))
+                decisionAlertItems.append(alertText)
+
+            if (issuance['type'] in ['Notice', 'DelegatedOrder']):
+                if (len(otherAlertItems) == 0):
+                    otherAlertItems.append("Daily %s Issuance URL: %s\n\n" % (issuance['type'], issuance['announceURL']))
+                urls = issuance['urls']
+                urlText = ""
+                for url in urls:
+                    urlText = urlText + "\n\t%s, Link: %s" % (url['type'], url['url'])
+                alertText = "*************** FERC %s alert on docket %s\n%s%s" % (issuance['type'], issuance['docket'], issuance['description'], urlText)
+                otherAlertItems.append(alertText)
+                
+        if (len(decisionAlertItems) > 0):
+            send_alert(ferkee_props.props['to'], 'Ferkee Alert! Certificate Pipeline Decision(s) Published', '\n\n'.join (decisionAlertItems))
+        if (len(otherAlertItems) > 0):
+            send_alert(ferkee_props.props['noticeto'], 'Ferkee Alert! FERC Notices and/or Delegated Orders Published', '\n\n'.join (otherAlertItems))
         return item
 
 
