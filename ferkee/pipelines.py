@@ -176,7 +176,7 @@ class ProcessNewFerkeeItems(object):
                 urls = issuance['urls']
                 urlText = ""
                 for url in urls:
-                    urlText = urlText + "\n\t%s, Link: %s" % (url['type'], url['url'])
+                    urlText = urlText + "\n\t%s: %s" % (url['type'], url['url'])
                 alertText = "*************** FERC %s alert on docket %s\n%s%s" % (issuance['type'], issuance['docket'], issuance['description'], urlText)
                 otherAlertItems.append(alertText)
                 
