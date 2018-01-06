@@ -5,70 +5,64 @@ import boto3
 import pprint
 import subprocess
 import os
+import ferkee_props
 
 #
 # Run a generic command through the shell
 #
-def run_command(command):
+def run_command(command, toSend=None):
     print ("Running command: %s" % command)
     p = subprocess.Popen(command,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, shell=True)
-    return p.communicate('')[0]
+    return p.communicate(toSend)[0]
 
-
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
+def send_alert(to, subject, alert):
+    print ("Email alert=%s" % alert)
+    if ferkee_props.props['noEmail']:
+        return None
+    sendEmailOutput = run_command ("sendEmail -f '%s' -t '%s' -u '%s' -s smtp.gmail.com:587 -xu '%s' -xp '%s' -m '%s'" % (ferkee_props.props['from'], to, subject, ferkee_props.props['from'], ferkee_props.props['from_p'], alert))
+    print ("sendEmail Result: %s" % sendEmailOutput)
 
 # 
-# Transforms 
+# Transforms the crawl data into our main DB format and saves them
 #
 class TransformFerkeeObjects(object):
 
     def __init__(self):
         self.dynamodb = None;
         self.pp = pprint.PrettyPrinter(indent=4)
-        self.noDBMode = False
 
     def open_spider(self, spider):
-        if (spider.noDBMode):
-            self.noDBMode = spider.noDBMode
-        else:
+        if (not ferkee_props.props['noDBMode']):
             self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 
     #
     # Pulls out the decision PDF from the specific URL, and parses the first section to act as a description
     #
     def getDecisionText(self, url):
-        print ("================ getDecisionText")
         url = url.replace('http:', 'https:')
-        print ("URL=%s" % url)
         urlParts = url.split('/')
         fileName = urlParts[len(urlParts)-1]
         curlOutput = run_command('cd /tmp; curl -O ' + url)
 
-        print ("Curl output: %s" % ''.join(curlOutput))
 
         outputFile = "/tmp/" + fileName
-        print ("Output file: %s" % outputFile)
 
         command = 'pdf2txt.py -m 1 -t text -L 1.0 ' + outputFile
-        print ("Command=%s" % command)
         pdf2text = run_command(command)
+        pdf2text = pdf2text.decode("utf8")
 
         pdf2text = pdf2text.split("\n")
 
         pdf2text = [x for x in pdf2text if x.strip()]
 
         text =  '\n'.join(pdf2text)
-        print ("PDF TEXT: %s" % text)
         os.remove(outputFile)
         return text
 
     def seenIssuanceBefore(self, issuance):
-        if self.noDBMode:
+        if (ferkee_props.props['noDBMode']):
             return False;
 
         table = self.dynamodb.Table('FIDTest')
@@ -89,7 +83,7 @@ class TransformFerkeeObjects(object):
 
 
     def saveIssuanceToDB(self, issuance):
-        if self.noDBMode:
+        if (ferkee_props.props['noDBMode']):
             return None;
 
         table = self.dynamodb.Table('FIDTest')
@@ -103,7 +97,6 @@ class TransformFerkeeObjects(object):
 
     def process_item(self, item, spider):
         url = item['url']
-        print ("URL=%s" % url)
         items = []
         issuanceType = ''
         savedSearch = False
@@ -128,7 +121,7 @@ class TransformFerkeeObjects(object):
                     issuance = {
                         'docket': docket,
                         'announceURL': url,
-                        'Type': issuanceType,
+                        'type': issuanceType,
                         'description': description,
                         'urls': urls
                     }
@@ -145,9 +138,9 @@ class TransformFerkeeObjects(object):
                 issuance = {
                     'docket': docket,
                     'announceURL': url,
-                    'Type': issuanceType,
+                    'type': issuanceType,
                     'description': description,
-                    'urls': [decision['decisionUrl']]
+                    'urls': [{'url':decision['decisionUrl'], 'type':'PDF'}]
                 }
                 if (not self.seenIssuanceBefore(issuance)):
                     issuance['description'] = self.getDecisionText(issuanceURL)
@@ -156,14 +149,24 @@ class TransformFerkeeObjects(object):
         
         return {"newIssuances": newIssuances}
 
+#
+# Processes all new issuances we haven't seen and sends alerts on them
+#
 class ProcessNewFerkeeItems(object):
     def __init__(self):
         self.pp = pprint.PrettyPrinter(indent=4)
 
     def process_item(self, item, spider):
-        self.pp.pprint (item)
+        alertItems = []
+        for issuance in item['newIssuances']:
+            if (issuance['type'] == 'Decision'):
+                urls = issuance['urls'][0]
+                url = urls['url']
+                alertText = "***************  New Certificate Pipeline Decision: %s: %s\n%s" % (issuance['docket'], url, issuance['description'])
+                # alertText = "***************  New Certificate Pipeline Decision: %s: %s\n" % (issuance['docket'], url)
+                alertItems.append(alertText)
+        if (len(alertItems) > 0):
+            send_alert(ferkee_props.props['to'], 'Ferkee Alert! Certificate Pipeline Decision(s) Published', '\n\n'.join (alertItems))
         return item
-
-
 
 
