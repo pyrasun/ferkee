@@ -6,6 +6,17 @@ import pprint
 import subprocess
 import os
 
+#
+# Run a generic command through the shell
+#
+def run_command(command):
+    print ("Running command: %s" % command)
+    p = subprocess.Popen(command,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, shell=True)
+    return p.communicate('')[0]
+
+
 # Define your item pipelines here
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
@@ -27,13 +38,6 @@ class TransformFerkeeObjects(object):
         else:
             self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 
-    def run_command(self, command):
-        print ("Running command: %s" % command)
-        p = subprocess.Popen(command,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, shell=True)
-        return p.communicate('')[0]
-
     #
     # Pulls out the decision PDF from the specific URL, and parses the first section to act as a description
     #
@@ -43,7 +47,7 @@ class TransformFerkeeObjects(object):
         print ("URL=%s" % url)
         urlParts = url.split('/')
         fileName = urlParts[len(urlParts)-1]
-        curlOutput = self.run_command('cd /tmp; curl -O ' + url)
+        curlOutput = run_command('cd /tmp; curl -O ' + url)
 
         print ("Curl output: %s" % ''.join(curlOutput))
 
@@ -52,7 +56,7 @@ class TransformFerkeeObjects(object):
 
         command = 'pdf2txt.py -m 1 -t text -L 1.0 ' + outputFile
         print ("Command=%s" % command)
-        pdf2text = self.run_command(command)
+        pdf2text = run_command(command)
 
         pdf2text = pdf2text.split("\n")
 
