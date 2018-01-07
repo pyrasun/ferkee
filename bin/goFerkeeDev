@@ -10,6 +10,6 @@ echo "$0 $@" >>$LOG
 echo "" >>$LOG
 
 while [ "1" = "1" ]; do
-  python ferkeeRun.py -p ~/ferkee_new.props.dev "$@" >>~/ferkee_dev.log 2>&1
+  python ferkeeRun.py -p ~/ferkee_new.props.dev "$@" >>$LOG 2>&1
   sleep 83
 done

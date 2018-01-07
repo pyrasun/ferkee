@@ -1,3 +1,16 @@
 export PATH=~/sendEmail-v1.56:$PATH
 cd ~/ferkee/
-nohup ./ferkee.pl -c ~/ferkee.props.prod >>~/ferkee.prod.log &
+
+LOG=~/ferkee_prod.log
+echo "=============================================" >>$LOG
+DATETIME=`date`
+echo "Ferkee Run @ $DATETIME" >>$LOG
+
+echo "$0 $@" >>$LOG
+echo "" >>$LOG
+
+while [ "1" = "1" ]; do
+  python ferkeeRun.py -p ~/ferkee_new.props.prod "$@" >>$LOG 2>&1
+  sleep 83
+done
+
