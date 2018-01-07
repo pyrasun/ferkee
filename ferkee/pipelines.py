@@ -42,7 +42,7 @@ class TransformFerkeeObjects(object):
 
     def open_spider(self, spider):
         if (not fp.props['noDBMode']):
-            self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+            self.dynamodb = boto3.resource('dynamodb', endpoint_url=fp.props['dynamodb_endpoint_url'])
 
     #
     # Pulls out the decision PDF from the specific URL, and parses the first section to act as a description
@@ -164,6 +164,23 @@ class TransformFerkeeObjects(object):
                     newIssuances.append(issuance)
         
         return {"newIssuances": newIssuances}
+
+#
+# Filter out items that don't match the docket filter
+# 
+class FilterFerkeeItems(object):
+
+    def process_item(self, item, spider):
+        issuances = []
+        for issuance in item['newIssuances']:
+            docket = issuance['docket']
+            if re.match(fp.props['decision_pattern'], docket, re.M|re.I):
+                print ("Docket %s matches pattern %s, accepting" % (docket, fp.props['decision_pattern']))
+                issuances.append(issuance)
+            else:
+                print ("Docket %s does not match pattern %s, filtering" % (docket, fp.props['decision_pattern']))
+        return {"newIssuances": issuances}
+
 
 #
 # Processes all new issuances we haven't seen and sends alerts on them

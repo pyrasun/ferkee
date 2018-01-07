@@ -67,6 +67,7 @@ ROBOTSTXT_OBEY = True
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'ferkee.pipelines.TransformFerkeeObjects': 20,
+    'ferkee.pipelines.FilterFerkeeItems': 30,
     'ferkee.pipelines.ProcessNewFerkeeItems': 40,
 }
 
