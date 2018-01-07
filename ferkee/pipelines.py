@@ -71,7 +71,7 @@ class TransformFerkeeObjects(object):
         if (fp.props['noDBMode']):
             return False;
 
-        table = self.dynamodb.Table('FIDTest')
+        table = self.dynamodb.Table(fp.props['issuance_table'])
         try:
             response = table.get_item(
                 Key={
@@ -92,7 +92,7 @@ class TransformFerkeeObjects(object):
         if (fp.props['noDBMode']):
             return None;
 
-        table = self.dynamodb.Table('FIDTest')
+        table = self.dynamodb.Table(fp.props['issuance_table'])
 
         try:
             table.put_item (Item=issuance)
