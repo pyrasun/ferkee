@@ -33,13 +33,13 @@ class FercNotionalSpider(scrapy.Spider):
         orderPageHref = link.xpath('@href').extract()[0];
         if (orderPageHref.startswith("/EventCalendar") and notFound): 
           notFound = False
-          print response.urljoin(orderPageHref);
+          # print response.urljoin(orderPageHref);
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
       noticePages = response.xpath('//a[contains(@href, "&typ=Notice")]') 
       for index, link in enumerate(noticePages):
         noticePageHref = link.xpath('@href').extract()[0];
-        print response.urljoin(noticePageHref);
+        # print response.urljoin(noticePageHref);
         noticeRequest= scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
         noticeRequest.meta['issuanceType'] = 'notices'
         yield noticeRequest
@@ -47,7 +47,7 @@ class FercNotionalSpider(scrapy.Spider):
       delegatedOrderPages = response.xpath('//a[contains(@href, "&typ=Delegated")]') 
       for index, link in enumerate(delegatedOrderPages):
         delegatedOrderPageHref = link.xpath('@href').extract()[0];
-        print response.urljoin(delegatedOrderPageHref);
+        # print response.urljoin(delegatedOrderPageHref);
         delegatedOrderRequest = scrapy.Request(response.urljoin(delegatedOrderPageHref), callback=self.parseSavedSearch)
         delegatedOrderRequest.meta['issuanceType'] = 'delegated_orders'
         yield delegatedOrderRequest
@@ -70,7 +70,7 @@ class FercNotionalSpider(scrapy.Spider):
             if (len(decisionURL) > 0):
               decision = {'docket': docket, 'decisionUrl':decisionURL[0]}
               result['decisions'].append(decision)
-              print ("%s;%s" % (docket, decisionURL[0]))
+              # print ("%s;%s" % (docket, decisionURL[0]))
             else:
               print ("No URL found for %s" % docket);
           return result
@@ -86,8 +86,8 @@ class FercNotionalSpider(scrapy.Spider):
     # Parse a FERC saved search
     def parseSavedSearchResult(self, response):
         issuanceType = response.meta['issuanceType']
-        print ("\n\n*****************************************");
-        print ("parseSavedSearchResults %s: Response %s" % (issuanceType, response));
+        # print ("\n\n*****************************************");
+        # print ("parseSavedSearchResults %s: Response %s" % (issuanceType, response));
         result = {}
         result['url'] = response.meta['originalURL']
         result[issuanceType] = []
@@ -109,7 +109,7 @@ class FercNotionalSpider(scrapy.Spider):
                 urlArray.append(urlData)
 
             if (dockets and description and dockets.startswith("CP")):
-              print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
+              # print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
               issuance = {'dockets': dockets, 'urls':urlArray, 'description':description}
               result[issuanceType].append(issuance)
             row = row + 1

@@ -1,28 +1,34 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function # Python 2/3 compatibility
-from botocore.exceptions import ClientError
-import boto3
 import pprint
 import subprocess
 import os
-import ferkee_props
+import re
+
+from botocore.exceptions import ClientError
+import boto3
+
+import ferkee_props as fp
 
 #
 # Run a generic command through the shell
 #
 def run_command(command, toSend=None):
-    print ("Running command: %s" % command)
+    # print ("Running command: %s" % command)
     p = subprocess.Popen(command,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, shell=True)
     return p.communicate(toSend)[0]
 
+#
+# Send an email alert
+# 
 def send_alert(to, subject, alert):
     alert = alert.replace("'", "")
-    print ("Email alert=%s" % alert)
-    if ferkee_props.props['noEmail']:
+    # print ("Email alert=%s" % alert)
+    if fp.props['noEmail']:
         return None
-    sendEmailOutput = run_command ("sendEmail -f '%s' -t '%s' -u '%s' -s smtp.gmail.com:587 -xu '%s' -xp '%s' -m '%s'" % (ferkee_props.props['from'], to, subject, ferkee_props.props['from'], ferkee_props.props['from_p'], alert))
+    sendEmailOutput = run_command ("sendEmail -f '%s' -t '%s' -u '%s' -s smtp.gmail.com:587 -xu '%s' -xp '%s' -m '%s'" % (fp.props['from'], to, subject, fp.props['from'], fp.props['from_p'], alert))
     print ("sendEmail Result: %s" % sendEmailOutput)
 
 # 
@@ -35,7 +41,7 @@ class TransformFerkeeObjects(object):
         self.pp = pprint.PrettyPrinter(indent=4)
 
     def open_spider(self, spider):
-        if (not ferkee_props.props['noDBMode']):
+        if (not fp.props['noDBMode']):
             self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 
     #
@@ -46,7 +52,6 @@ class TransformFerkeeObjects(object):
         urlParts = url.split('/')
         fileName = urlParts[len(urlParts)-1]
         curlOutput = run_command('cd /tmp; curl -O ' + url)
-
 
         outputFile = "/tmp/" + fileName
 
@@ -63,7 +68,7 @@ class TransformFerkeeObjects(object):
         return text
 
     def seenIssuanceBefore(self, issuance):
-        if (ferkee_props.props['noDBMode']):
+        if (fp.props['noDBMode']):
             return False;
 
         table = self.dynamodb.Table('FIDTest')
@@ -84,7 +89,7 @@ class TransformFerkeeObjects(object):
 
 
     def saveIssuanceToDB(self, issuance):
-        if (ferkee_props.props['noDBMode']):
+        if (fp.props['noDBMode']):
             return None;
 
         table = self.dynamodb.Table('FIDTest')
@@ -114,6 +119,10 @@ class TransformFerkeeObjects(object):
         newIssuances = []
 
         if (savedSearch):
+            matchObj = re.search( r'tdd=(\d\d/\d\d/\d\d\d\d)', url, re.M|re.I)
+            issueDate = "Unknown"
+            if (matchObj):
+                issueDate = matchObj.group(1)
             for item in items:
                 dockets = item['dockets'].split(' ')
                 description = item['description']
@@ -122,6 +131,7 @@ class TransformFerkeeObjects(object):
                     issuance = {
                         'docket': docket,
                         'announceURL': url,
+                        'announceDate': issueDate,
                         'type': issuanceType,
                         'description': description,
                         'urls': urls
@@ -130,6 +140,10 @@ class TransformFerkeeObjects(object):
                         self.saveIssuanceToDB(issuance)
                         newIssuances.append(issuance)
         elif ('decisions' in item):
+            matchObj = re.search( r'Date=(\d\d/\d\d/\d\d\d\d)', url, re.M|re.I)
+            issueDate = "Unknown"
+            if (matchObj):
+                issueDate = matchObj.group(1)
             issuanceType = 'Decision'
             decisions = item['decisions']
             for decision in decisions:
@@ -139,6 +153,7 @@ class TransformFerkeeObjects(object):
                 issuance = {
                     'docket': docket,
                     'announceURL': url,
+                    'announceDate': issueDate,
                     'type': issuanceType,
                     'description': description,
                     'urls': [{'url':decision['decisionUrl'], 'type':'PDF'}]
@@ -164,26 +179,29 @@ class ProcessNewFerkeeItems(object):
         for issuance in item['newIssuances']:
             if (issuance['type'] == 'Decision'):
                 if (len(decisionAlertItems) == 0):
-                    decisionAlertItems.append("Daily Decision Issuance URL: %s\n\n" % (issuance['announceURL']))
+                    decisionAlertItems.append("Daily Decision Issuance for %s, URL: %s" % (issuance['announceDate'], issuance['announceURL']))
                 urls = issuance['urls'][0]
                 url = urls['url']
-                alertText = "***************  New Certificate Pipeline Decision: %s: %s\n%s" % (issuance['docket'], url, issuance['description'])
+                alertHeader = "***************  New Certificate Pipeline Decision: %s: %s" % (issuance['docket'], url)
+                print (alertHeader)
+                alertText = "%s\n%s" % (alertHeader, issuance['description'])
                 decisionAlertItems.append(alertText)
 
             if (issuance['type'] in ['Notice', 'DelegatedOrder']):
                 if (len(otherAlertItems) == 0):
-                    otherAlertItems.append("Daily %s Issuance URL: %s\n\n" % (issuance['type'], issuance['announceURL']))
+                    otherAlertItems.append("Daily %s Issuance for %s, URL: %s" % (issuance['announceDate'], issuance['type'], issuance['announceURL']))
                 urls = issuance['urls']
                 urlText = ""
                 for url in urls:
                     urlText = urlText + "\n\t%s: %s" % (url['type'], url['url'])
                 alertText = "*************** FERC %s alert on docket %s\n%s%s" % (issuance['type'], issuance['docket'], issuance['description'], urlText)
+                print (alertText)
                 otherAlertItems.append(alertText)
                 
         if (len(decisionAlertItems) > 0):
-            send_alert(ferkee_props.props['to'], 'Ferkee Alert! Certificate Pipeline Decision(s) Published', '\n\n'.join (decisionAlertItems))
+            send_alert(fp.props['to'], "Ferkee Alert! Certificate Pipeline Decision(s) Published for %s" % (issuance['announceDate']), '\n\n'.join (decisionAlertItems))
         if (len(otherAlertItems) > 0):
-            send_alert(ferkee_props.props['noticeto'], 'Ferkee Alert! FERC Notices and/or Delegated Orders Published', '\n\n'.join (otherAlertItems))
+            send_alert(fp.props['noticeto'], "Ferkee Alert! FERC %s(s) Published for %s" % (issuance['type'], issuance['announceDate']), '\n\n'.join (otherAlertItems))
         return item
 
 
