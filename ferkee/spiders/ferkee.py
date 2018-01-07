@@ -28,11 +28,9 @@ class FercNotionalSpider(scrapy.Spider):
     # When found, fire off a crawler to parse that
     def parseFrontPage(self, response):
       ordersPages = response.xpath('//a[contains(@href, "&CalendarID=101&")]') 
-      notFound = True
       for index, link in enumerate(ordersPages):
         orderPageHref = link.xpath('@href').extract()[0];
-        if (orderPageHref.startswith("/EventCalendar") and notFound): 
-          notFound = False
+        if (orderPageHref.startswith("/EventCalendar")): 
           # print response.urljoin(orderPageHref);
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
@@ -55,6 +53,7 @@ class FercNotionalSpider(scrapy.Spider):
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
         myUrl = response.request.url
+        # print ("Crawling %s" % (myUrl))
         result = {}
         result['url'] = myUrl;
         result['decisions'] = []
@@ -72,7 +71,9 @@ class FercNotionalSpider(scrapy.Spider):
               result['decisions'].append(decision)
               # print ("%s;%s" % (docket, decisionURL[0]))
             else:
-              print ("No URL found for %s" % docket);
+              decision = {'docket': docket, 'decisionUrl':''}
+              result['decisions'].append(decision)
+              # print ("No URL found for %s" % docket);
           return result
 
     # Parse a saved search result, this is basically a pre-filled form that we have to manually submit

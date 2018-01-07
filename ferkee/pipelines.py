@@ -139,6 +139,7 @@ class TransformFerkeeObjects(object):
                     if (not self.seenIssuanceBefore(issuance)):
                         self.saveIssuanceToDB(issuance)
                         newIssuances.append(issuance)
+                        # self.pp.pprint(issuance)
         elif ('decisions' in item):
             matchObj = re.search( r'Date=(\d\d/\d\d/\d\d\d\d)', url, re.M|re.I)
             issueDate = "Unknown"
@@ -161,6 +162,7 @@ class TransformFerkeeObjects(object):
                 if (not self.seenIssuanceBefore(issuance)):
                     issuance['description'] = self.getDecisionText(issuanceURL)
                     self.saveIssuanceToDB(issuance);
+                    # self.pp.pprint(issuance)
                     newIssuances.append(issuance)
         
         return {"newIssuances": newIssuances}
@@ -175,12 +177,9 @@ class FilterFerkeeItems(object):
         for issuance in item['newIssuances']:
             docket = issuance['docket']
             if re.match(fp.props['decision_pattern'], docket, re.M|re.I):
-                print ("Docket %s matches pattern %s, accepting" % (docket, fp.props['decision_pattern']))
                 issuances.append(issuance)
-            else:
-                print ("Docket %s does not match pattern %s, filtering" % (docket, fp.props['decision_pattern']))
         return {"newIssuances": issuances}
-
+                
 
 #
 # Processes all new issuances we haven't seen and sends alerts on them
