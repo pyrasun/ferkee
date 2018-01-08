@@ -42,7 +42,7 @@ class TransformFerkeeObjects(object):
 
     def open_spider(self, spider):
         if (not fp.props['noDBMode']):
-            self.dynamodb = boto3.resource('dynamodb', endpoint_url=fp.props['dynamodb_endpoint_url'])
+            self.dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=fp.props['dynamodb_endpoint_url'])
 
     #
     # Pulls out the decision PDF from the specific URL, and parses the first section to act as a description
