@@ -1,11 +1,13 @@
 import scrapy
 import re
+import logging 
 
 class FercNotionalSpider(scrapy.Spider):
     name = "ferkee"
 
     def __init__(self, *args, **kwargs):
         super(FercNotionalSpider, self).__init__(*args, **kwargs)
+        self.log = logging.getLogger(__name__)
 
     # Normal operation - scrape the ferc.gov page and find the most recent notional decision URL, and scrape that
     def start_requests(self):
@@ -31,13 +33,13 @@ class FercNotionalSpider(scrapy.Spider):
       for index, link in enumerate(ordersPages):
         orderPageHref = link.xpath('@href').extract()[0];
         if (orderPageHref.startswith("/EventCalendar")): 
-          # print response.urljoin(orderPageHref);
+          self.log.info("Decision Announce URL: %s" % response.urljoin(orderPageHref));
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
       noticePages = response.xpath('//a[contains(@href, "&typ=Notice")]') 
       for index, link in enumerate(noticePages):
         noticePageHref = link.xpath('@href').extract()[0];
-        # print response.urljoin(noticePageHref);
+        self.log.info("Notice Announce URL %s" % response.urljoin(noticePageHref));
         noticeRequest= scrapy.Request(response.urljoin(noticePageHref), callback=self.parseSavedSearch)
         noticeRequest.meta['issuanceType'] = 'notices'
         yield noticeRequest
@@ -45,7 +47,7 @@ class FercNotionalSpider(scrapy.Spider):
       delegatedOrderPages = response.xpath('//a[contains(@href, "&typ=Delegated")]') 
       for index, link in enumerate(delegatedOrderPages):
         delegatedOrderPageHref = link.xpath('@href').extract()[0];
-        # print response.urljoin(delegatedOrderPageHref);
+        self.log.info("Delegated Order Announce URL: %s" % response.urljoin(delegatedOrderPageHref));
         delegatedOrderRequest = scrapy.Request(response.urljoin(delegatedOrderPageHref), callback=self.parseSavedSearch)
         delegatedOrderRequest.meta['issuanceType'] = 'delegated_orders'
         yield delegatedOrderRequest
@@ -69,11 +71,12 @@ class FercNotionalSpider(scrapy.Spider):
             if (len(decisionURL) > 0):
               decision = {'docket': docket, 'decisionUrl':decisionURL[0]}
               result['decisions'].append(decision)
-              # print ("%s;%s" % (docket, decisionURL[0]))
+              self.log.info("Decision found %s:%s" % (docket, decisionURL[0]))
             else:
               decision = {'docket': docket, 'decisionUrl':''}
               result['decisions'].append(decision)
-              # print ("No URL found for %s" % docket);
+              self.log.warn ("No URL found for %s" % docket);
+              self.log.info("Decision found %s:%s" % (docket, "missing"))
           return result
 
     # Parse a saved search result, this is basically a pre-filled form that we have to manually submit
@@ -109,8 +112,10 @@ class FercNotionalSpider(scrapy.Spider):
                 urlData['type'] = urlText;
                 urlArray.append(urlData)
 
+            # Don't bother to pick up Notices and Delegated Orders for non-CP items
             if (dockets and description and dockets.startswith("CP")):
               # print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
+              self.log.info("SavedSearch hit on %s" % dockets)
               issuance = {'dockets': dockets, 'urls':urlArray, 'description':description}
               result[issuanceType].append(issuance)
             row = row + 1

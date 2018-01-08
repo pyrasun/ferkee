@@ -1,5 +1,10 @@
 #!/usr/bin/perl
 
+#
+# TO DELETE SOON
+# SUPERCEDED BY PURE PYTHON VERSION
+# 
+
 use strict;
 use warnings;
 
