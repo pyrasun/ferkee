@@ -28,7 +28,7 @@ def send_alert(to, subject, alert):
     alert = alert.replace("'", "")
     if fp.props['noEmail']:
         return None
-    sendEmailOutput = run_command ("sendEmail -f '%s' -t '%s' -u '%s' -s smtp.gmail.com:587 -xu '%s' -xp '%s' -m '%s'" % (fp.props['from'], to, subject, fp.props['from'], fp.props['from_p'], alert))
+    sendEmailOutput = run_command ("sendEmail -f '%s' -t %s -u '%s' -s smtp.gmail.com:587 -xu '%s' -xp '%s' -m '%s'" % (fp.props['from'], to, subject, fp.props['from'], fp.props['from_p'], alert))
     print ("sendEmail Result: %s" % sendEmailOutput)
 
 #
