@@ -52,6 +52,52 @@ class FercNotionalSpider(scrapy.Spider):
         delegatedOrderRequest.meta['issuanceType'] = 'delegated_orders'
         yield delegatedOrderRequest
 
+      newsItems = self.scrapeNews(response)
+
+      yield {'newsItems':newsItems}
+
+    def initializeNewsItem(self):
+        newsItem = {
+          'issuanceDate': '',
+          'description':'',
+          'urls': []
+        }
+        return newsItem
+      
+    def scrapeNews(self, response):
+      newsSection = response.xpath("//h2[contains(text(),\"What's New\")]/following-sibling::p/node()")
+      newsItems = []
+      newsItem = None
+      self.log.info ("Scraping news, see %s nodes...." % len(newsSection))
+      for newsLine in newsSection:
+        elementName = newsLine.xpath("name()").extract_first()
+        rawNodeText = newsLine.extract()
+        nodeSubText = newsLine.xpath("text()").extract_first()
+
+        if elementName == 'strong':
+          if (newsItem):
+            newsItems.append(newsItem)
+          newsItem = self.initializeNewsItem()
+          newsItem['issuanceDate'] = nodeSubText.strip()
+
+        elif elementName == 'a':
+          link = newsLine.xpath('@href').extract_first()
+          if link:
+            newsItem['urls'].append ({'url': response.urljoin(link), 'text': nodeSubText})
+        elif elementName == 'br' or elementName == 'img':
+          pass
+        else:
+          if newsItem and rawNodeText:
+            finalString = re.sub(r'^\s*\-\s*', '', rawNodeText)
+            finalString = re.sub(r'\|\s*$', '', finalString)
+            finalString = finalString.strip()
+            newsItem['description'] = newsItem['description'] + finalString
+
+      if newsItem:
+        newsItems.append(newsItem)
+      return newsItems
+      
+
     # Parse a FERC notional order page, looking for all notional decisions
     def parseNotationals(self, response):
         myUrl = response.request.url
@@ -115,7 +161,7 @@ class FercNotionalSpider(scrapy.Spider):
             # Don't bother to pick up Notices and Delegated Orders for non-CP items
             if (dockets and description and dockets.startswith("CP")):
               # print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
-              self.log.info("SavedSearch hit on %s" % dockets)
+              # self.log.info("SavedSearch hit on %s" % dockets)
               issuance = {'dockets': dockets, 'urls':urlArray, 'description':description}
               result[issuanceType].append(issuance)
             row = row + 1

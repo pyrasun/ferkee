@@ -4,25 +4,26 @@ import boto3
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url="http://localhost:8000")
 # dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url="http://dynamodb.us-east-1.amazonaws.com")
 
+
 table = dynamodb.create_table(
-    TableName='FIDTest',
+    TableName='NewsTest',
     KeySchema=[
         {
-            'AttributeName': 'docket',
+            'AttributeName': 'description',
             'KeyType': 'HASH'  #Partition key
         },
         {
-            'AttributeName': 'announceURL',
+            'AttributeName': 'issuanceDate',
             'KeyType': 'RANGE'  #Sort key
         }
     ],
     AttributeDefinitions=[
         {
-            'AttributeName': 'docket',
+            'AttributeName': 'description',
             'AttributeType': 'S'
         },
         {
-            'AttributeName': 'announceURL',
+            'AttributeName': 'issuanceDate',
             'AttributeType': 'S'
         },
 
