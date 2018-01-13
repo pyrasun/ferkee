@@ -8,7 +8,7 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=dben
 
 
 table = dynamodb.create_table(
-    TableName='NewsTest',
+    TableName='News',
     KeySchema=[
         {
             'AttributeName': 'description',
