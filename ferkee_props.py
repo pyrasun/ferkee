@@ -1,12 +1,16 @@
 
+import logging
+
 props = {
 
 }
 
 def dump_props():
-  print ("Ferkee startup properties:")
+  log = logging.getLogger(__name__)
+
+  log.info ("Ferkee startup properties:")
   for key, val in props.items():
     if (key == 'from_p'):
       val = "********"
-    print ("\t%s=%s" % (key, val))
+    log.info ("\t%s=%s" % (key, val))
 

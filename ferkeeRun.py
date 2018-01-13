@@ -21,11 +21,11 @@ ferkee_props.props = dict(config.items("Ferkee"))
 ferkee_props.props['noDBMode'] = args.nodb
 ferkee_props.props['noEmail'] = args.noemail
 
-ferkee_props.dump_props()
-
 configure_logging({'LOG_FORMAT': '%(levelname)s: %(message)s'})
 
 process = CrawlerProcess(get_project_settings())
+
+ferkee_props.dump_props()
 
 process.crawl('ferkee', domain='ferc.gov')
 process.start() # the script will block here until the crawling is finished
