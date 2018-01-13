@@ -88,6 +88,8 @@ class TransformFerkeeObjects(object):
             )
         except ClientError as e:
             self.log.error("DynamoDB error on seenNewsBefore: %s" % e.response['Error']['Message'])
+            self.log.error(self.pp.pformat(e.response))
+            self.log.error("Offending input %s" % self.pp.pformat(news))
 
         if response and 'Item' in response:
             return True
@@ -104,7 +106,8 @@ class TransformFerkeeObjects(object):
             table.put_item (Item=news)
         except ClientError as e:
             self.log.error("DynamoDB Error on saveNewsToDB put_item: %s" % e.response['Error']['Message'])
-            self.pp.pprint(e.response)
+            self.log.error(self.pp.pformat(e.response))
+            self.log.error("Offending input %s" % self.pp.pformat(news))
 
 
     def seenIssuanceBefore(self, issuance):
@@ -121,6 +124,8 @@ class TransformFerkeeObjects(object):
             )
         except ClientError as e:
             self.log.error("DynamoDB error on seenIssuanceBefore: %s" % e.response['Error']['Message'])
+            self.log.error(self.pp.pformat(e.response))
+            self.log.error("Offending input %s" % self.pp.pformat(issuance))
 
         if response and 'Item' in response:
             return True
@@ -138,7 +143,8 @@ class TransformFerkeeObjects(object):
             table.put_item (Item=issuance)
         except ClientError as e:
             self.log.error("DynamoDB Error on saveIssuanceToDB put_item: %s" % e.response['Error']['Message'])
-            self.pp.pprint(e.response)
+            self.log.error(self.pp.pformat(e.response))
+            self.log.error("Offending input %s" % self.pp.pformat(issuance))
 
     def process_item(self, item, spider):
         if isIssuance(item):
@@ -212,6 +218,10 @@ class TransformFerkeeObjects(object):
                 issuanceURL = decision['decisionUrl']
                 docket = decision['docket']
                 description = "TBD"
+                if (not issuanceURL or len(issuanceURL.strip()) == 0):
+                  issuanceURL = None
+                  decision['decisionUrl'] = 'None'
+
                 issuance = {
                     'docket': docket,
                     'announceURL': url,
@@ -220,10 +230,6 @@ class TransformFerkeeObjects(object):
                     'description': description,
                     'urls': [{'url':decision['decisionUrl'], 'type':'PDF'}]
                 }
-                if (not issuanceURL or len(issuanceURL.strip()) == 0):
-                  issuanceURL = None
-                  decision['decisionUrl'] = 'None'
-
                 if (not self.seenIssuanceBefore(issuance)):
                     if (issuanceURL):
                       issuance['description'] = self.getDecisionText(issuanceURL)
