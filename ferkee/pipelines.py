@@ -157,12 +157,12 @@ class TransformFerkeeObjects(object):
         if isIssuance(item):
             return self.processIssuances(item, spider)
         elif ('newsItems' in item):
-            return self.processNews(item, spider)
+            return self.newsdao.processNews(item, spider)
         elif 'newDockets' in item:
             return self.processNewDockets(item, spider)
         else:
             self.log.warn ("Unknown pipeline item %s" % (item))
-        
+
     #
     # Process new FERC dockets
     # 
@@ -174,19 +174,6 @@ class TransformFerkeeObjects(object):
             unseenNewDockets.append(newDocket)
         return {"newDockets": unseenNewDockets}
 
-
-    #
-    # Process News items
-    # 
-    def processNews(self, item, spider):
-        newNews = []
-        self.log.info("Processing %s news items" % len (item['newsItems']))
-        for newsItem in item['newsItems']:
-          self.log.info ("News Item: %s '%s'.  Links: %s" % (newsItem['issuanceDate'], newsItem['description'], newsItem['urls']))
-          if (not self.newsdao.seenNewsBefore(newsItem)):
-            self.newsdao.saveNewsToDB(newsItem)
-            newNews.append(newsItem)
-        return {'newsItems':newNews}
 
     #
     # Process all issuances

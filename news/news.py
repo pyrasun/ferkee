@@ -4,8 +4,8 @@ import boto3
 
 import ferkee_props as fp
 
-class NewsDAO:
 
+class NewsDAO:
     def __init__(self):
         self.dynamodb = None;
         self.log = logging.getLogger(__name__)
@@ -52,5 +52,19 @@ class NewsDAO:
             self.log.error("DynamoDB Error on saveNewsToDB put_item: %s" % e.response['Error']['Message'])
             self.log.error(pp.pformat(e.response))
             self.log.error("Offending input %s" % pp.pformat(news))
+
+
+    #
+    # Process News items
+    # 
+    def processNews(self, item, spider):
+        newNews = []
+        self.log.info("Processing %s news items" % len (item['newsItems']))
+        for newsItem in item['newsItems']:
+          self.log.info ("News Item: %s '%s'.  Links: %s" % (newsItem['issuanceDate'], newsItem['description'], newsItem['urls']))
+          if (not self.seenNewsBefore(newsItem)):
+            self.saveNewsToDB(newsItem)
+            newNews.append(newsItem)
+        return {'newsItems':newNews}
 
 
