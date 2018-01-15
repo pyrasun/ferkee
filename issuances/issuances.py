@@ -11,6 +11,8 @@ import boto3
 import ferkee_props as fp
 import news.news as news
 
+import utils
+
 class IssuanceDAO:
 
     def __init__(self):
@@ -26,12 +28,12 @@ class IssuanceDAO:
         url = url.replace('http:', 'https:')
         urlParts = url.split('/')
         fileName = urlParts[len(urlParts)-1]
-        curlOutput = run_command('cd /tmp; curl -O ' + url)
+        curlOutput = utils.run_command('cd /tmp; curl -O ' + url)
 
         outputFile = "/tmp/" + fileName
 
         command = 'pdf2txt.py -m 1 -t text -L 1.0 ' + outputFile
-        pdf2text = run_command(command)
+        pdf2text = utils.run_command(command)
         pdf2text = pdf2text.decode("utf8")
 
         pdf2text = pdf2text.split("\n")
