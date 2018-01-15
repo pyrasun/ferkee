@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 import boto3
 
 import ferkee_props as fp
+import news.news as news
 
 #
 # Run a generic command through the shell
@@ -37,17 +38,24 @@ def send_alert(to, subject, alert):
 def isIssuance(item):
   return any(key in item for key in ['notices', 'delegated_orders', 'decisions'])
 
+pp = pprint.PrettyPrinter(indent=4)
+
+
 # 
-# Transforms the crawl data into our main DB format and saves them
+# Pipeline processor to transform the crawl data into our main DB format and saves them
 #
 class TransformFerkeeObjects(object):
 
     def __init__(self):
-        self.dynamodb = None;
-        self.pp = pprint.PrettyPrinter(indent=4)
+        self.dynamodb = None
+        self.newsdao = None
         self.log = logging.getLogger(__name__)
 
+    #
+    # Lifecycle start
+    #
     def open_spider(self, spider):
+        self.newsdao = news.NewsDAO()
         if (not fp.props['noDBMode']):
             self.dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=fp.props['dynamodb_endpoint_url'])
 
@@ -74,45 +82,9 @@ class TransformFerkeeObjects(object):
         os.remove(outputFile)
         return text
 
-    def seenNewsBefore(self, news):
-        if (fp.props['noDBMode']):
-            return False;
-        table = self.dynamodb.Table(fp.props['news_table'])
-        response = None
-        try:
-            response = table.get_item(
-                Key={
-                    'description': news['description'],
-                    'issuanceDate': news['issuanceDate'],
-                }
-            )
-        except ClientError as e:
-            self.log.error("DynamoDB error on seenNewsBefore: %s" % e.response['Error']['Message'])
-            self.log.error(self.pp.pformat(e.response))
-            self.log.error("Offending input %s" % self.pp.pformat(news))
-
-        if response and 'Item' in response:
-            return True
-        else:
-            return False
-
-    def saveNewsToDB(self, news):
-        if (fp.props['noDBMode']):
-            return None;
-
-        table = self.dynamodb.Table(fp.props['news_table'])
-
-        try:
-            table.put_item (Item=news)
-        except ClientError as e:
-            self.log.error("DynamoDB Error on saveNewsToDB put_item: %s" % e.response['Error']['Message'])
-            self.log.error(self.pp.pformat(e.response))
-            self.log.error("Offending input %s" % self.pp.pformat(news))
-
-
     def seenIssuanceBefore(self, issuance):
         if (fp.props['noDBMode']):
-            return False;
+            return False
 
         table = self.dynamodb.Table(fp.props['issuance_table'])
         try:
@@ -124,8 +96,8 @@ class TransformFerkeeObjects(object):
             )
         except ClientError as e:
             self.log.error("DynamoDB error on seenIssuanceBefore: %s" % e.response['Error']['Message'])
-            self.log.error(self.pp.pformat(e.response))
-            self.log.error("Offending input %s" % self.pp.pformat(issuance))
+            self.log.error(pp.pformat(e.response))
+            self.log.error("Offending input %s" % pp.pformat(issuance))
 
         if response and 'Item' in response:
             return True
@@ -135,7 +107,7 @@ class TransformFerkeeObjects(object):
 
     def saveIssuanceToDB(self, issuance):
         if (fp.props['noDBMode']):
-            return None;
+            return None
 
         table = self.dynamodb.Table(fp.props['issuance_table'])
 
@@ -143,29 +115,82 @@ class TransformFerkeeObjects(object):
             table.put_item (Item=issuance)
         except ClientError as e:
             self.log.error("DynamoDB Error on saveIssuanceToDB put_item: %s" % e.response['Error']['Message'])
-            self.log.error(self.pp.pformat(e.response))
-            self.log.error("Offending input %s" % self.pp.pformat(issuance))
+            self.log.error(pp.pformat(e.response))
+            self.log.error("Offending input %s" % pp.pformat(issuance))
 
+
+    def seenNewDocketBefore(self, newDocket):
+        if (fp.props['noDBMode']):
+            return False
+
+        return False
+
+        try:
+          pass
+        except ClientError as e:
+            self.log.error("DynamoDB error on seenNewDocketBefore: %s" % e.response['Error']['Message'])
+            self.log.error(pp.pformat(e.response))
+            self.log.error("Offending input %s" % pp.pformat(newDocket))
+
+        if response and 'Item' in response:
+            return True
+        else:
+            return False
+
+    def saveNewDocketToDB(self, newDocket):
+        if (fp.props['noDBMode']):
+            return None
+
+
+        return None
+        try:
+          pass
+        except ClientError as e:
+            self.log.error("DynamoDB Error on saveNewDocketToDB put_item: %s" % e.response['Error']['Message'])
+            self.log.error(pp.pformat(e.response))
+            self.log.error("Offending input %s" % pp.pformat(newDocket))
+
+    #
+    # Scrapy Pipeline entry
+    # 
     def process_item(self, item, spider):
         if isIssuance(item):
             return self.processIssuances(item, spider)
         elif ('newsItems' in item):
             return self.processNews(item, spider)
+        elif 'newDockets' in item:
+            return self.processNewDockets(item, spider)
         else:
             self.log.warn ("Unknown pipeline item %s" % (item))
         
+    #
+    # Process new FERC dockets
+    # 
+    def processNewDockets(self, item, spider):
+        unseenNewDockets = []
+        for newDocket in item['newDockets']:
+          if (not self.seenNewDocketBefore(newDocket)):
+            self.saveNewDocketToDB(newDocket)
+            unseenNewDockets.append(newDocket)
+        return {"newDockets": unseenNewDockets}
 
+
+    #
+    # Process News items
+    # 
     def processNews(self, item, spider):
         newNews = []
         self.log.info("Processing %s news items" % len (item['newsItems']))
         for newsItem in item['newsItems']:
           self.log.info ("News Item: %s '%s'.  Links: %s" % (newsItem['issuanceDate'], newsItem['description'], newsItem['urls']))
-          if (not self.seenNewsBefore(newsItem)):
-            self.saveNewsToDB(newsItem);
+          if (not self.newsdao.seenNewsBefore(newsItem)):
+            self.newsdao.saveNewsToDB(newsItem)
             newNews.append(newsItem)
         return {'newsItems':newNews}
 
-
+    #
+    # Process all issuances
+    # 
     def processIssuances(self, item, spider):
         url = ''
         if 'url' in item:
@@ -206,7 +231,7 @@ class TransformFerkeeObjects(object):
                     if (not self.seenIssuanceBefore(issuance)):
                         self.saveIssuanceToDB(issuance)
                         newIssuances.append(issuance)
-                        # self.pp.pprint(issuance)
+                        # pp.pprint(issuance)
         elif ('decisions' in item):
             matchObj = re.search( r'Date=(\d\d/\d\d/\d\d\d\d)', url, re.M|re.I)
             issueDate = "Unknown"
@@ -235,8 +260,8 @@ class TransformFerkeeObjects(object):
                       issuance['description'] = self.getDecisionText(issuanceURL)
                     else:
                       issuance['description'] = "[Description not available]"
-                    self.saveIssuanceToDB(issuance);
-                    # self.pp.pprint(issuance)
+                    self.saveIssuanceToDB(issuance)
+                    # pp.pprint(issuance)
                     newIssuances.append(issuance)
         return {"newIssuances": newIssuances}
 #
@@ -244,6 +269,9 @@ class TransformFerkeeObjects(object):
 # 
 class FilterFerkeeItems(object):
 
+    #
+    # Scrapy pipeline entry
+    #
     def process_item(self, item, spider):
         if isIssuance(item):
           issuances = []
@@ -259,9 +287,10 @@ class FilterFerkeeItems(object):
 # Processes all new issuances we haven't seen and sends alerts on them
 #
 class ProcessNewFerkeeItems(object):
-    def __init__(self):
-        self.pp = pprint.PrettyPrinter(indent=4)
 
+    #
+    # Scrapy pipeline entry
+    #
     def process_item(self, item, spider):
         decisionAlertItems = []
         otherAlertItems = []

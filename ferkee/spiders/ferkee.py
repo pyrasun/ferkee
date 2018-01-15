@@ -2,6 +2,11 @@ import scrapy
 import re
 import logging 
 
+import datetime as dt
+
+#
+# A Scrapy Spider designed to scrape portions of the FERC web site
+#
 class FercNotionalSpider(scrapy.Spider):
     name = "ferkee"
 
@@ -11,11 +16,8 @@ class FercNotionalSpider(scrapy.Spider):
 
     # Normal operation - scrape the ferc.gov page and find the most recent notional decision URL, and scrape that
     def start_requests(self):
-      urls = [
-          'http://www.ferc.gov'
-      ]
-      for url in urls:
-        yield scrapy.Request(url=url, callback=self.parseFrontPage)
+      yield scrapy.Request(url='http://www.ferc.gov', callback=self.parseFrontPage)
+      yield scrapy.Request(url='https://elibrary.ferc.gov/idmws/NewDockets.aspx', callback=self.parseNewDockets)
 
     # For testing - hit one known multi decision page
     # def start_requests(self):
@@ -29,6 +31,7 @@ class FercNotionalSpider(scrapy.Spider):
     # '/EventCalendar/EventDetails.aspx?ID=9840&CalType=%20&CalendarID=101&Date=11/20/2017&View=Listview'
     # When found, fire off a crawler to parse that
     def parseFrontPage(self, response):
+      # Find all Notional Order pages we want scraped
       ordersPages = response.xpath('//a[contains(@href, "&CalendarID=101&")]') 
       for index, link in enumerate(ordersPages):
         orderPageHref = link.xpath('@href').extract()[0];
@@ -36,6 +39,7 @@ class FercNotionalSpider(scrapy.Spider):
           self.log.info("Decision Announce URL: %s" % response.urljoin(orderPageHref));
           yield scrapy.Request(response.urljoin(orderPageHref), callback=self.parseNotationals)
 
+      # Find all Notice pages we want scraped
       noticePages = response.xpath('//a[contains(@href, "&typ=Notice")]') 
       for index, link in enumerate(noticePages):
         noticePageHref = link.xpath('@href').extract()[0];
@@ -44,6 +48,7 @@ class FercNotionalSpider(scrapy.Spider):
         noticeRequest.meta['issuanceType'] = 'notices'
         yield noticeRequest
 
+      # Find all Delegated Order pages we want scraped
       delegatedOrderPages = response.xpath('//a[contains(@href, "&typ=Delegated")]') 
       for index, link in enumerate(delegatedOrderPages):
         delegatedOrderPageHref = link.xpath('@href').extract()[0];
@@ -52,10 +57,68 @@ class FercNotionalSpider(scrapy.Spider):
         delegatedOrderRequest.meta['issuanceType'] = 'delegated_orders'
         yield delegatedOrderRequest
 
+      # Find all news items we want scraped
       newsItems = self.scrapeNews(response)
 
       yield {'newsItems':newsItems}
 
+
+    #
+    # Parse new dockets page.  Bascially submits a form saying we want to see all new dockets
+    # for the past several days
+    #
+    def parseNewDockets(self, response):
+      rightNow = dt.date.today()
+      fromDate = rightNow - dt.timedelta(days=3)
+
+      fromDateString = fromDate.strftime("%m/%d/%Y")
+      toDateString = rightNow.strftime("%m/%d/%Y")
+      self.log.info ("New Docket search date range: %s to %s" % (fromDateString, toDateString))
+      newDocketsRequest = scrapy.FormRequest.from_response(response, 
+                    formdata={
+                      'RadioButtonList1': 'rbCreateDate',
+                      'txtFrom': fromDateString,
+                      'txtTo': toDateString,
+                      'cmbSort': 'Print_Docket',
+                      'btnSubmit': 'Submit'
+                      },
+                    callback=self.parseNewDocketsSubmit)
+      yield newDocketsRequest
+
+    #
+    # Parse new docket page
+    #
+    def parseNewDocketsSubmit(self, response):
+      self.log.info ("New Docket Search Results")
+      newDockets = []
+      # self.debug(response)
+      for tr in response.xpath('//table[@id="NewDocketsGrid"]/tr'):
+        docket = tr.xpath('td[1]/font/text()|td[1]/text()').extract()
+        createDate = tr.xpath('td[2]/font/text()|td[1]/text()').extract()
+        filedDate = tr.xpath('td[3]//font/text()|td[1]/text()').extract()
+        description = tr.xpath('td[4]/font/text()|td[1]/text()').extract()
+        applicants = tr.xpath('td[5]/font/text()|td[1]/text()').extract()
+
+        # self.log.info ("\tNew Docket: docket: %s createDate: %s filedDate: %s desc: %s Applicants: %s" % (docket, createDate, filedDate, description, applicants))
+        newDocket = {
+          'docket': docket,
+          'createDate': createDate,
+          'filedDate': filedDate,
+          'description': description,
+          'applicants': applicants
+        }
+        newDockets.append(newDocket)
+      return {"newDockets": newDockets}
+
+
+    def debug(self, node):
+      self.log.info("%s" % (node.xpath('node()').extract()));
+      
+      
+
+    #
+    # Return an empty News Item
+    #
     def initializeNewsItem(self):
         newsItem = {
           'issuanceDate': '',
@@ -64,6 +127,9 @@ class FercNotionalSpider(scrapy.Spider):
         }
         return newsItem
       
+    #
+    # Scrape the news section
+    #
     def scrapeNews(self, response):
       newsSection = response.xpath("//h2[contains(text(),\"What's New\")]/following-sibling::p/node()")
       newsItems = []
@@ -97,8 +163,9 @@ class FercNotionalSpider(scrapy.Spider):
         newsItems.append(newsItem)
       return newsItems
       
-
+    #
     # Parse a FERC notional order page, looking for all notional decisions
+    #
     def parseNotationals(self, response):
         myUrl = response.request.url
         # print ("Crawling %s" % (myUrl))
