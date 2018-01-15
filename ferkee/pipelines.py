@@ -264,6 +264,7 @@ class TransformFerkeeObjects(object):
                     # pp.pprint(issuance)
                     newIssuances.append(issuance)
         return {"newIssuances": newIssuances}
+
 #
 # Filter out items that don't match the docket filter
 # 

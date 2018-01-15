@@ -93,29 +93,32 @@ class FercNotionalSpider(scrapy.Spider):
       newDockets = []
       # self.debug(response)
       for tr in response.xpath('//table[@id="NewDocketsGrid"]/tr'):
-        docket = tr.xpath('td[1]/font/text()|td[1]/text()').extract()
-        createDate = tr.xpath('td[2]/font/text()|td[1]/text()').extract()
-        filedDate = tr.xpath('td[3]//font/text()|td[1]/text()').extract()
-        description = tr.xpath('td[4]/font/text()|td[1]/text()').extract()
-        applicants = tr.xpath('td[5]/font/text()|td[1]/text()').extract()
+        docket = tr.xpath('td[1]/font/text()|td[1]/text()').extract_first()
+        createDate = tr.xpath('td[2]/font/text()|td[1]/text()').extract_first()
+        filedDate = tr.xpath('td[3]//font/text()|td[1]/text()').extract_first()
+        description = tr.xpath('td[4]/font/text()|td[1]/text()').extract_first()
+        applicants = tr.xpath('td[5]/font/text()|td[1]/text()').extract_first()
 
-        # self.log.info ("\tNew Docket: docket: %s createDate: %s filedDate: %s desc: %s Applicants: %s" % (docket, createDate, filedDate, description, applicants))
-        newDocket = {
-          'docket': docket,
-          'createDate': createDate,
-          'filedDate': filedDate,
-          'description': description,
-          'applicants': applicants
-        }
-        newDockets.append(newDocket)
+        #
+        # We only are about new certficate pipeline or rule making dockets
+        #
+        if docket and (docket.startswith('CP') or docket.startswith('RM')):
+          self.log.info("New Docket %s being sent along to pipeline" % docket)
+          # self.log.info ("\tNew Docket: docket: %s createDate: %s filedDate: %s desc: %s Applicants: %s" % (docket, createDate, filedDate, description, applicants))
+          newDocket = {
+            'docket': docket,
+            'createDate': createDate,
+            'filedDate': filedDate,
+            'description': description,
+            'applicants': applicants
+          }
+          newDockets.append(newDocket)
       return {"newDockets": newDockets}
 
 
     def debug(self, node):
       self.log.info("%s" % (node.xpath('node()').extract()));
       
-      
-
     #
     # Return an empty News Item
     #
@@ -225,8 +228,8 @@ class FercNotionalSpider(scrapy.Spider):
                 urlData['type'] = urlText;
                 urlArray.append(urlData)
 
-            # Don't bother to pick up Notices and Delegated Orders for non-CP items
-            if (dockets and description and dockets.startswith("CP")):
+            # Don't bother to pick up Notices and Delegated Orders for non-CP items or non-RM items
+            if (dockets and description and (dockets.startswith("CP") or dockets.startswith("RM"))):
               # print ("Row %s: dockets: %s, description: %s, URLs: %s" % (row, dockets, description, URLs))
               # self.log.info("SavedSearch hit on %s" % dockets)
               issuance = {'dockets': dockets, 'urls':urlArray, 'description':description}
