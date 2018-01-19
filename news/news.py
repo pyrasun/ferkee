@@ -62,7 +62,10 @@ class NewsDAO:
         self.log.info("Processing %s news items" % len (item['newsItems']))
         for newsItem in item['newsItems']:
           self.log.info ("News Item: %s '%s'.  Links: %s" % (newsItem['issuanceDate'], newsItem['description'], newsItem['urls']))
-          if (not self.seenNewsBefore(newsItem)):
+          description = newsItem['description']
+          if description is None or len(description) == 0:
+            self.log.warn("News item has empty description, skipping")
+          elif (not self.seenNewsBefore(newsItem)):
             self.saveNewsToDB(newsItem)
             newNews.append(newsItem)
         return {'newsItems':newNews}
